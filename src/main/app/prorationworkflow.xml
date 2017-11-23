@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <flow name="prorationWorkflow" processingStrategy="synchronous">
+        <logger message="Check Session Var = #[sessionVars.billedParty.billingSystemAccountId]" level="INFO" doc:name="Logger"/>
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.upsert"/>
+        <http:request config-ref="Aria_Workflow_Request_Configuration" path="${aria.workflow.path}" method="GET" doc:name="Proration Workflow 1st Call">
+            <http:request-builder>
+                <http:query-param paramName="FlowPath" value="${aria.workflow.proration.flowpath}"/>
+                <http:query-param paramName="Action" value="api"/>
+                <http:query-param paramName="sessionid" value="${aria.workflow.proration.sessionid}"/>
+                <http:query-param paramName="outputtype" value="XML"/>
+                <http:query-param paramName="AccountNo" value="#[sessionVars.billedParty.billingSystemAccountId]"/>
+                <http:query-param paramName="PlanInstanceNumber" value="#[sessionVars.billedParty.toBeBillingSystemAccount.prorationHostedSuppPlanId]"/>
+                <http:query-param paramName="ProrationDate" value="#[server.dateTime.format(&quot;yyyy-MM-dd&quot;)]"/>
+                <http:query-param paramName="TrackingId" value="MuleSoft"/>
+                <http:query-param paramName="ApiLogLevel" value="DEBUG"/>
+
+
+
+
+
+            </http:request-builder>
+        </http:request>
+        <http:request config-ref="Aria_Workflow_Request_Configuration" path="${aria.workflow.path}" method="GET" doc:name="Proration Workflow 2nd Call">
+            <http:request-builder>
+                <http:query-param paramName="FlowPath" value="${aria.workflow.proration.flowpath}"/>
+                <http:query-param paramName="Action" value="api"/>
+                <http:query-param paramName="sessionid" value="${aria.workflow.proration.sessionid}"/>
+                <http:query-param paramName="outputtype" value="XML"/>
+                <http:query-param paramName="AccountNo" value="#[sessionVars.billedParty.billingSystemAccountId]"/>
+                <http:query-param paramName="PlanInstanceNumber" value="#[sessionVars.billedParty.toBeBillingSystemAccount.SMprorationHostedSuppPlanId]"/>
+                <http:query-param paramName="ProrationDate" value="#[server.dateTime.format(&quot;yyyy-MM-dd&quot;)]"/>
+                <http:query-param paramName="TrackingId" value="MuleSoft"/>
+                <http:query-param paramName="ApiLogLevel" value="DEBUG"/>
+            </http:request-builder>
+        </http:request>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+        
+	</flow>
+</mule>

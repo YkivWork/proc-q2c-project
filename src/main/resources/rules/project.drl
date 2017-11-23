@@ -1,0 +1,38 @@
+package com.merrillcorp.enterprise.canonical.models;
+global org.mule.module.bpm.MessageService mule;
+
+rule "Project is suspended"
+  when
+    $p:Project(sourceData.projectStatus=="Suspended")
+  then
+  	System.out.println( "Project is Suspended"); 
+end
+
+rule "AriaDoWrite"
+	when
+		$p : Project(sourceData.projectStatus == "Active");
+	then
+		$p.getProjectDirective().setAriaDoWrite(Boolean.TRUE);
+end
+
+rule "AriaAssignmentDirective"
+	when
+		$p : Project(sourceData.projectStatus == "Active");
+	then
+		$p.getProjectDirective().setAriaAssignmentDirective(Boolean.TRUE);
+end
+
+rule "AriaIncludeCustomRates"
+	when
+		$p : Project(sourceData.projectStatus == "Active");
+	then
+		$p.getProjectDirective().setAriaIncludeCustomRates(Boolean.TRUE);
+end
+
+rule "AriaIncludePlanInstanceStatus"
+	when
+		$p : Project(sourceData.projectStatus == "Active");
+	then
+		$p.getProjectDirective().setAriaIncludePlanInstanceStatus(Boolean.TRUE);
+end
+

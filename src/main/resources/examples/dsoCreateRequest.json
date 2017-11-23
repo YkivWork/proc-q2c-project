@@ -1,0 +1,29 @@
+{
+  "info": {
+    "name": "MS Test Multi",
+    "description": "MS Test Multi",
+    "externalId": "a27c0000005RdbnAAC",
+    "dataCenter": "US",
+    "productCode": "MANDA",
+    "emailId": "lalarson@att.net",
+    "scheduledActivationDate": 0,
+    "state": "ACTIVE",
+    "demo": false
+  },
+  "deleted": false,
+  "configurations": null,
+  "entitlements": [
+    {
+      "enabled": true,
+      "entitlementCode": "VDR"
+    },
+    {
+      "enabled": true,
+      "entitlementCode": "SecureExcelViewer"
+    },
+    {
+      "enabled": true,
+      "entitlementCode": "QA"
+    }
+  ]
+}

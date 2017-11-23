@@ -1,0 +1,24 @@
+package com.merrillcorp.enterprise.canonical.models;
+global org.mule.module.bpm.MessageService mule;
+
+rule ariaDoWrite
+	when
+		$p : Project();
+	then
+		$p.getProjectDirective().setAriaDoWrite(true);
+end
+
+rule ariaAssignmentDirective
+	when
+	then
+end
+
+rule ariaIncludeCustomRates
+	when
+	then
+end
+
+rule ariaIncludePlanInstanceStatus
+	when
+	then
+end

@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:core="http://www.mulesoft.org/schema/mule/core" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd">
+    <flow name="addAccountMPIs" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.single"/>
+        <flow-ref name="addAriaMpiToSfProject" doc:name="addAriaMpiToSfProject"/>
+        <flow-ref name="addAriaAcctToSfProjXRef" doc:name="addAriaAcctToSfProjXRef"/>
+        <choice doc:name="Choice" tracking:enable-default-events="true">
+            <when expression="#[sessionVars.billedParty.isNewAccount(sessionVars.projectModel.getSourceData())]">
+                <flow-ref name="addAriaAcctToSfBillCo" doc:name="addAriaAcctToSfBillCo"/>
+            </when>
+            <otherwise>
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Is New Account= Default" level="INFO" doc:name="Choice Logger" category="com.merrillcorp.choice.single"/>
+            </otherwise>
+        </choice>
+        <flow-ref name="updateAriaCreationFieldInSfdcFlow" doc:name="updateAriaCreationFieldInSfdcFlow"/>
+        <flow-ref name="updateIntegrationMetaData" doc:name="updateIntegrationMetaData"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+        
+    </flow>
+    <flow name="parseSingleAriaResponse" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.upsert"/>
+        <dw:transform-message doc:name="Parse Aria Response">
+            <dw:input-payload doc:sample="sample_data\empty_4.xml"/>
+            <dw:set-session-variable variableName="ariaResponse"><![CDATA[%dw 1.0
+%output application/java
+%var createResponseElement = payload.Envelope.Body.create_acct_complete_mResponseElement
+%var updateResponseElement = payload.Envelope.Body.update_acct_plan_multi_mResponseElement
+---
+({
+  planInstanceNumber: createResponseElement.out_acct.master_plans_assigned.client_plan_instance_id,
+  accountNumber: createResponseElement.out_acct[0].acct_no,
+  errorMessage: createResponseElement.error_msg
+}) when createResponseElement != null otherwise 
+({
+  planInstanceNumber: (updateResponseElement.*plans_updated filter $.client_plan_id=="DataSite").client_plan_instance_id[0],
+  accountNumber: updateResponseElement.out_acct_no,
+  errorMessage: updateResponseElement.error_msg
+})]]></dw:set-session-variable>
+        </dw:transform-message>
+        <choice doc:name="Valid Aria Response">
+            <when expression="ariaResponse.errorMessage == 'OK'">
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice: Aria Response =#[ariaResponse.errorMessage]" level="INFO" category="com.merrillcorp.choice.single" doc:name="Logger"/>
+            </when>
+            <otherwise>
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice: Aria Response =#[ariaResponse.errorMessage]" level="INFO" category="com.merrillcorp.choice.single" doc:name="Logger"/>
+                <filter ref="Aria_Response_Evaluation" doc:name="Filter Reference"/>
+            </otherwise>
+        </choice>
+        <flow-ref name="addAccountMPIs" doc:name="addAccountMPIs"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+        
+    </flow>
+    <flow name="updateAriaCreationFieldInSfdcFlow">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="Start of Flow Logger"/>
+        <dw:transform-message doc:name="Create SFDC Update" metadata:id="a230118e-7415-4493-a6d6-2393d1235585">
+            <dw:input-session-variable mimeType="application/java" variableName="projectModel"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[{
+  Id: sessionVars.projectModel.sourceData.projectSfdcId,
+  Aria_Account_Creation__c: sessionVars.ariaResponse.errorMessage
+}]]]></dw:set-payload>
+        </dw:transform-message>
+        <sfdc:update config-ref="Salesforce__Basic_Authentication" type="DatasiteOne_Project__c" doc:name="Salesforce"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+        
+    </flow>
+    <flow name="billToWorkflow" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.upsert"/>
+		<http:request config-ref="Aria_Workflow_Request_Configuration" path="${aria.workflow.path}" method="GET" doc:name="Bill To Workflow">
+	        <http:request-builder>
+                <http:query-param paramName="FlowPath" value="${aria.workflow.billto.flowpath}"/>
+                <http:query-param paramName="Action" value="api"/>
+                <http:query-param paramName="sessionid" value="${aria.workflow.billto.sessionid}"/>
+                <http:query-param paramName="outputtype" value="XML"/>
+                <http:query-param paramName="FromAcctNo" value="#[sessionVars.billedParty.billingSystemAccountId]"/>
+                <http:query-param paramName="FromMPI" value="#[sessionVars.billedParty.billingSystemMasterPlanId]"/>
+                <http:query-param paramName="ToAcctNo" value="#[sessionVars.billedParty.toBeBillingSystemAccount.billingSystemAccountId]"/>
+                <http:query-param paramName="ToMPI" value="#[sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanId]"/>
+                <http:query-param paramName="Void" value="#[sessionVars.billedParty.sourceData.retroChange]"/>
+                <http:query-param paramName="Terminate" value="#[sessionVars.billedParty.billedPartyDirective.billToWorkFlowTermination]"/>
+                <http:query-param paramName="No_Copy" value="false"/>
+                <http:query-param paramName="Retro" value="#[sessionVars.billedParty.sourceData.retroChange]"/>
+	        </http:request-builder>
+	    </http:request>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+    </flow>
+    <flow name="updateIntegrationMetaData" processingStrategy="synchronous"> 
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="Start of Flow Logger"/> 
+        <dw:transform-message doc:name="Create Integration MetaData Update" metadata:id="a230118e-7415-4493-a6d6-2393d1235585"> 
+            <dw:input-variable mimeType="application/java" variableName="billedParty"/> 
+            <dw:input-session-variable mimeType="application/java" variableName="projectModel"/> 
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[{ 
+  Id: sessionVars.projectModel.integrationMetadata.id,
+  Last_Completed_Project_Status__c: sessionVars.projectModel.sourceData.projectStatus
+}]]]></dw:set-payload> 
+        </dw:transform-message>
+ 
+        <sfdc:update config-ref="Salesforce__Basic_Authentication" type="Integration_Metadata__c" doc:name="Salesforce"> 
+            <sfdc:objects ref="#[payload]"/> 
+        </sfdc:update> 
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+        <filter ref="updatePlanStatusStop" doc:name="Update Plan Status Stop"/>
+ 
+    </flow> 
+</mule>

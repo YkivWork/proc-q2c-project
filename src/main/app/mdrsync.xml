@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+       xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+       xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+       xmlns:spring="http://www.springframework.org/schema/beans" 
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <flow name="mdrSync" processingStrategy="synchronous">
+
+        <foreach collection="payload.billedParties" doc:name="For Each">
+            <set-session-variable variableName="mdrSyncBilledParty" value="#[payload]" doc:name="Persist Billed Party"/>
+            <flow-ref name="maintainMdrProj" doc:name="maintainMdrProj"/>
+            <flow-ref name="addOraAcctToOrg" doc:name="addOraAcctToOrg"/>
+        </foreach>
+    </flow>
+
+    <flow name="maintainMdrProj" processingStrategy="synchronous">
+        <flow-ref name="addSfBillCoToProj" doc:name="addSfBillCoToProj"/>
+        <flow-ref name="sfBillAddr" doc:name="addSfBillAddrToProj"/>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="oraSite" doc:name="addOraSiteToProj"/>
+        <flow-ref name="oraAcct" doc:name="addOraAcctToProj"/>
+    </flow>
+    <flow name="addOraAcctToOrg" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.sync"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="03ececcd-43f7-49ac-bdd5-987bbf612049">
+            <dw:input-variable variableName="billedParty"/>
+            <dw:input-session-variable mimeType="application/java" variableName="mdrSyncBilledParty"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    entity_type_key:"ORG",
+    on_id_type_key:"SF_BILLCO",
+    on_id_value:sessionVars.mdrSyncBilledParty.sourceData.billingCompany.sfdcId,
+    on_qualifier1_key: "VAT",
+    on_qualifier1_value: sessionVars.mdrSyncBilledParty.sourceData.billingCompany.vatRegistration,
+    add_id_type_key:"ORA_ACCT",
+    add_id_value:sessionVars.mdrSyncBilledParty.sourceData.billingCompany.oracleAccountId,
+    add_qualifier1_key:"VAT",
+    add_qualifier1_value:sessionVars.mdrSyncBilledParty.sourceData.billingCompany.vatRegistration,
+    add_start_date: (sessionVars.projectModel.sourceData.createdAt as :date) as :string {format: 'yyyy-MM-dd'} when sessionVars.projectModel.sourceData.createdAt != null
+  	otherwise (now as :date) as :string {format: 'yyyy-MM-dd'}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.sync" doc:name="End of Flow Logger"/>
+    </flow>
+    <flow name="addSfBillCoToProj" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.sync"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="797f6d59-1b4a-438b-9c19-aa6df085d620">
+            <dw:input-session-variable mimeType="application/java" variableName="mdrSyncBilledParty"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    entity_type_key:"PROJ",
+    on_id_type_key:"SF_PROJ",
+    on_id_value:sessionVars.projectModel.sourceData.projectSfdcId,
+    add_id_type_key:"SF_BILLCO",
+    add_id_value:sessionVars.mdrSyncBilledParty.sourceData.billingCompany.sfdcId,
+    add_qualifier1_key:"VAT",
+    add_qualifier1_value:sessionVars.mdrSyncBilledParty.sourceData.billingCompany.vatRegistration,
+    add_start_date: (sessionVars.projectModel.sourceData.createdAt as :date) as :string {format: 'yyyy-MM-dd'} when sessionVars.projectModel.sourceData.createdAt != null
+  	otherwise (now as :date) as :string {format: 'yyyy-MM-dd'}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.sync" doc:name="End of Flow Logger"/>
+    </flow>
+   
+  <flow name="sfBillAddr" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.sync"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="fe41d95a-fb8f-4604-a36a-b215db343331">
+            <dw:input-session-variable mimeType="application/java" variableName="mdrSyncBilledParty"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    entity_type_key:"PROJ",
+    on_id_type_key:"SF_PROJ",
+    on_id_value:sessionVars.projectModel.sourceData.projectSfdcId,
+    add_id_type_key:"SF_BILLADDR",
+    add_id_value:sessionVars.mdrSyncBilledParty.sourceData.billingAddress.sfdcId,
+    add_qualifier1_key:"OPERUNIT",
+    add_qualifier1_value:sessionVars.projectModel.sourceData.operatingUnitName,
+    add_start_date: (sessionVars.projectModel.sourceData.createdAt as :date) as :string {format: 'yyyy-MM-dd'} when sessionVars.projectModel.sourceData.createdAt != null
+  	otherwise (now as :date) as :string {format: 'yyyy-MM-dd'}
+}
+]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.sync" doc:name="End of Flow Logger"/>
+    </flow>
+
+    <flow name="oraSite" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.sync"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="a11b1663-a099-4fb5-b6e2-196f053cfca7">
+            <dw:input-session-variable mimeType="application/java" variableName="mdrSyncBilledParty"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    entity_type_key:"PROJ",
+    on_id_type_key:"SF_PROJ",
+    on_id_value:sessionVars.projectModel.sourceData.projectSfdcId,
+    add_id_type_key:"ORA_SITE",
+    add_id_value:sessionVars.mdrSyncBilledParty.sourceData.billingAddress.oracleSiteId,
+    add_qualifier1_key:"OPERUNIT",
+    add_qualifier1_value:sessionVars.projectModel.sourceData.operatingUnitName,
+    add_start_date: (sessionVars.projectModel.sourceData.createdAt as :date) as :string {format: 'yyyy-MM-dd'} when sessionVars.projectModel.sourceData.createdAt != null
+  	otherwise (now as :date) as :string {format: 'yyyy-MM-dd'}
+}
+]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.sync" doc:name="End of Flow Logger"/>
+    </flow>
+    <flow name="oraAcct" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.sync"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="12444391-1eff-41e4-8add-1bb36ab3e7de">
+            <dw:input-variable variableName="billedParty"/>
+            <dw:input-session-variable mimeType="application/java" variableName="mdrSyncBilledParty"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    entity_type_key:"PROJ",
+    on_id_type_key:"SF_PROJ",
+    on_id_value:sessionVars.projectModel.sourceData.projectSfdcId,
+    add_id_type_key:"ORA_ACCT",
+    add_id_value:sessionVars.mdrSyncBilledParty.sourceData.billingCompany.oracleAccountId,
+    add_qualifier1_key:"VAT",
+    add_qualifier1_value:sessionVars.mdrSyncBilledParty.sourceData.billingCompany.vatRegistration,
+    add_start_date: (sessionVars.projectModel.sourceData.createdAt as :date) as :string {format: 'yyyy-MM-dd'} when sessionVars.projectModel.sourceData.createdAt != null
+  	otherwise (now as :date) as :string {format: 'yyyy-MM-dd'}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.sync" doc:name="End of Flow Logger"/>
+    </flow>
+    <flow name="mdrsyncFlow" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.sync"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.sync" doc:name="End of Flow Logger"/>
+    </flow>
+
+
+</mule>

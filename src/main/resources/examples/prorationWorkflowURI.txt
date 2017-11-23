@@ -1,0 +1,1 @@
+https://merrilldev01.decisions.com/aria/Primary/?FlowId=${aria.workflow.billto.flowid}&Action=api&sessionid=${aria.workflow.billto.sessionid}&outputtype=XML&AcctNo=#[flowVars.billedParty.billingSystemAccount.billingSystemAccountId]&PlanIntanceNumber=#[flowVars.billedParty.billingSystemAccount.billingSystemMasterPlanId]&ProrationDate=#[server.dateTime.format("yyyy-MM-dd")]

@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Header/>
+  <soap:Body>
+    <aria:update_contact_m xmlns:aria="urn:client:api:wsdl:document/literal_wrapped:vers:11.0:aria_complete_m_api">
+      <client_no>6000228</client_no>
+      <auth_key>R3WSkfamtH9bMUrACMtm7FAtx7u8vYFy</auth_key>
+      <acct_no>1819550</acct_no>
+      <contact_ind>4</contact_ind>
+      <billing_group_no>1187210</billing_group_no>
+      <first_name>test</first_name>
+      <last_name>test</last_name>
+      <company_name>Cargill Incorporated</company_name>
+      <address1>9350 Excelsior Boulevard #2</address1>
+      <address2 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+      <address3 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+      <city>Hopkins</city>
+      <locality xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+      <state_prov>MN</state_prov>
+      <country_cd>US</country_cd>
+      <postal_cd>55343</postal_cd>
+      <phone xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:nil="true"/>
+      <email>test@gmail.com</email>
+    </aria:update_contact_m>
+  </soap:Body>
+</soap:Envelope>

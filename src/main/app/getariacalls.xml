@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+    <flow name="getAriaEntitlementsFromTemplate" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.aria.lookups"/>
+        <http:request config-ref="Aria_AdminTools_Request_Configuration" path="${aria.admintools.path}" method="GET" doc:name="Get Aria Entitlements">
+            <http:request-builder>
+                <http:query-param paramName="client_no" value="${aria.client_no}"/>
+                <http:query-param paramName="auth_key" value="${aria.auth_key}"/>
+                <http:query-param paramName="rest_call" value="get_plan_details_m"/>
+                <http:query-param paramName="output_format" value="json"/>
+                <http:query-param paramName="client_plan_id" value="DataSite"/>
+                <http:query-param paramName="include_rs_summary" value="true"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Transform Message" metadata:id="451d4c07-adcb-47b0-a9b5-79728f89bba0">
+            <dw:input-payload doc:sample="sample_data\json.json" mimeType="application/json"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%function findEntitlement(value) payload.supplemental_obj_fields[?( $.field_name == value )][0].field_value[0]
+---
+[{
+	activeEntitlements: findEntitlement("ACTIVE_ENTITLEMENTS"),
+	hibernationEntitlements: findEntitlement("HIBERNATION_ENTITLEMENTS"),
+	pendingCloseEntitlements: findEntitlement("PENDING_CLOSE_ENTITLEMENTS"),
+	preparationEntitlements: findEntitlement("PREPARATION_ENTITLEMENTS"),
+	suspendedEntitlements: findEntitlement("SUSPENDED_ENTITLEMENTS")
+} as :object {
+	class : "com.merrillcorp.enterprise.canonical.models.Entitlement"
+}]]]></dw:set-payload>
+        </dw:transform-message>
+
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.aria.lookups" doc:name="End of Flow Logger"/>
+        
+    </flow>
+    <sub-flow name="getAriaAcctDetails">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.aria.lookups"/>
+        <set-variable variableName="billedParty" value="#[payload]" doc:name="billedParty"/>
+        <set-variable variableName="ariaAcctId" value="#[payload.getBillingSystemAccountId(sessionVars.projectModel.getSourceData())]" doc:name="Variable" mimeType="application/java"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:input-payload doc:sample="sample_data\empty_5.xml"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace soap http://schemas.xmlsoap.org/soap/envelope/
+---
+{
+  soap#Envelope: {
+    soap#Header: {},
+    soap#Body: {
+      get_acct_details_all_m @(xmlns: p('aria.get_acct_details_all.url')): {
+        client_no: p('aria.client_no'),
+        auth_key: p('aria.auth_key'),
+
+        acct_no: flowVars.ariaAcctId,
+        
+        include_master_plans: 1,
+        include_supp_plans: 1,
+        include_billing_groups: 1
+      }
+    }
+  }
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <http:request config-ref="Aria_Request_Configuration" path="${aria.path}" method="POST" doc:name="HTTP">
+            <http:request-builder>
+                <http:header headerName="SOAPAction" value="&quot;get_acct_details_all_m&quot;"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:input-payload doc:sample="sample_data\empty.xml"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%var resp = payload.Envelope.Body.get_acct_details_all_mResponseElement
+---
+{
+  acct_no: resp.acct_no,
+  company_name: resp.company_name,
+  address1: resp.address1,
+  address2: resp.address2,
+  address3: resp.address3,
+  country_cd: resp.country_cd,
+  email: resp.email,
+  last_name: resp.last_name,
+  locality: resp.locality,
+  first_name: resp.first_name,
+  company_name: resp.company_name,
+  city: resp.city,
+  phone: resp.phone,
+  postal_cd: resp.postal_cd,
+  state_prov: resp.state_prov,
+
+  po_num: resp.po_num,
+
+  supp_field: resp.*supp_field,
+  billing_groups_info: resp.*billing_groups_info,
+
+  master_plans_info: resp.*master_plans_info map {
+  	master_plan_instance_no: $.master_plan_instance_no,
+  	client_master_plan_instance_id: $.client_master_plan_instance_id,
+  	dunning_group_no: $.dunning_group_no,
+  	po_num: $.po_num,
+  	billing_group_no: $.billing_group_no,
+    master_plan_instance_status: $.master_plan_instance_status,
+
+    master_plan_product_fields: $.*master_plan_product_fields,
+    mp_plan_inst_fields: $.*mp_plan_inst_fields,
+
+    master_plans_services: $.master_plans_services,
+
+    (supp_plans_info: $.*supp_plans_info map {
+
+      client_supp_plan_id: $.client_supp_plan_id,
+      alt_rate_schedule_no: $.alt_rate_schedule_no,
+      client_parent_plan_instance_id: $.client_parent_plan_instance_id,
+      client_supp_plan_instance_id: $.client_supp_plan_instance_id,
+      last_arrears_bill_thru_date: $.last_arrears_bill_thru_date,
+      last_bill_date: $.last_bill_date,
+      last_bill_thru_date: $.last_bill_thru_date,
+      next_bill_date: $.next_bill_date,
+      parent_plan_instance_no: $.parent_plan_instance_no,
+      plan_date: $.plan_date,
+      plan_deprovisioned_date: $.plan_deprovisioned_date,
+      po_num: $.po_num,
+      recurring_billing_interval: $.recurring_billing_interval,
+      rollover_plan_status: $.rollover_plan_status,
+      rollover_plan_status_duration: $.rollover_plan_status_duration,
+      rollover_plan_status_uom_cd: $.rollover_plan_status_uom_cd,
+      status_date: $.status_date,
+      supp_plan_instance_description: $.supp_plan_instance_description,
+      supp_plan_instance_no: $.supp_plan_instance_no,
+      supp_plan_instance_status: $.supp_plan_instance_status,
+      supp_plan_instance_status_cd: $.supp_plan_instance_status_cd,
+      supp_plan_no: $.supp_plan_no,
+      supp_plan_units: $.supp_plan_units,
+      usage_billing_interval: $.usage_billing_interval,
+      
+//We had to specify all those fields above, just so we can do this here
+//I need to find a better way, maybe coupling map and mapObject together but
+//I haven't figured it out
+      supp_plans_services: $.*supp_plans_services
+    }) when $.supp_plans_info is :array,
+        (supp_plans_info: $.*supp_plans_info map {
+
+      client_supp_plan_id: $.client_supp_plan_id,
+      alt_rate_schedule_no: $.alt_rate_schedule_no,
+      client_parent_plan_instance_id: $.client_parent_plan_instance_id,
+      client_supp_plan_instance_id: $.client_supp_plan_instance_id,
+      last_arrears_bill_thru_date: $.last_arrears_bill_thru_date,
+      last_bill_date: $.last_bill_date,
+      last_bill_thru_date: $.last_bill_thru_date,
+      next_bill_date: $.next_bill_date,
+      parent_plan_instance_no: $.parent_plan_instance_no,
+      plan_date: $.plan_date,
+      plan_deprovisioned_date: $.plan_deprovisioned_date,
+      po_num: $.po_num,
+      recurring_billing_interval: $.recurring_billing_interval,
+      rollover_plan_status: $.rollover_plan_status,
+      rollover_plan_status_duration: $.rollover_plan_status_duration,
+      rollover_plan_status_uom_cd: $.rollover_plan_status_uom_cd,
+      status_date: $.status_date,
+      supp_plan_instance_description: $.supp_plan_instance_description,
+      supp_plan_instance_no: $.supp_plan_instance_no,
+      supp_plan_instance_status: $.supp_plan_instance_status,
+      supp_plan_instance_status_cd: $.supp_plan_instance_status_cd,
+      supp_plan_no: $.supp_plan_no,
+      supp_plan_units: $.supp_plan_units,
+      usage_billing_interval: $.usage_billing_interval,
+      
+//We had to specify all those fields above, just so we can do this here
+//I need to find a better way, maybe coupling map and mapObject together but
+//I haven't figured it out
+      supp_plans_services: $.*supp_plans_services
+    }) when ($.supp_plans_info is :object)
+  }
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <json:object-to-json-transformer encoding="UTF-8" mimeType="application/json" doc:name="Object to JSON"/>
+
+        <invoke object-ref="invokeAriaAccountDetails" method="deserializeResponse" methodArguments="#[payload], #[billedParty]" name="Invoke" doc:name="Invoke"/> 
+ 
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.aria.lookups" doc:name="End of Flow Logger"/>
+    </sub-flow>
+</mule>

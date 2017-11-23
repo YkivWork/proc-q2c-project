@@ -1,0 +1,9 @@
+// This is the dataweave that creates the payload to update sfdc using the connector
+// An example of the sfdc id = a27c0000005RQfpAAG, dso id = 598c86706d34f700105ef82f
+%dw 1.0
+%output application/java
+---
+[{
+  Id: sessionVars.projectModel.sourceData.projectSfdcId,
+  DatasiteOne_ProjectID__c: flowVars.dsoResponse.id
+}]

@@ -1,0 +1,14 @@
+{
+  "entity_type_key": "ORG",
+  "on_id_type_key": "SF_BILLCO",
+  "on_id_value": "a3ic0000001F5F9AAK",
+  "on_qualifier1_key": "VAT",
+  "on_qualifier1_value": "VAT123",
+  "add_id_type_key": "Aria_Acct",
+  "add_id_value": "123",
+  "add_qualifier1_key": "CURRENCY",
+  "add_qualifier1_value": "USD",
+  "add_qualifier2_key": "LEGALENT",
+  "add_qualifier2_value": "010",
+  "add_start_date": "2017-08-29"
+}

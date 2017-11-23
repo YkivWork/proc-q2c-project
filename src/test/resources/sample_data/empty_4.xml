@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope 
+    xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" 
+    xmlns:ns1="urn:client:api:wsdl:document/literal_wrapped:vers:11.0:aria_complete_m_api" 
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <SOAP-ENV:Body>
+        <ns1:create_acct_complete_mResponseElement>
+            <ns1:error_code>0</ns1:error_code>
+            <ns1:error_msg>OK</ns1:error_msg>
+            <ns1:out_acct>
+                <ns1:acct_no xsi:nil="true"/>
+                <ns1:userid xsi:nil="true"/>
+                <ns1:client_acct_id xsi:nil="true"/>
+                <ns1:acct_locale_no>10001</ns1:acct_locale_no>
+                <ns1:acct_locale_name>System_US_English_locale</ns1:acct_locale_name>
+                <ns1:acct_contact_no>4969013</ns1:acct_contact_no>
+                <ns1:billing_contact_details xsi:nil="true"/>
+                <ns1:statement_contact_details>
+                    <ns1:billing_group_no>1237628</ns1:billing_group_no>
+                    <ns1:stmt_contact_no>4969014</ns1:stmt_contact_no>
+                </ns1:statement_contact_details>
+                <ns1:other_contact_details xsi:nil="true"/>
+                <ns1:contract_details xsi:nil="true"/>
+                <ns1:session_id xsi:nil="true"/>
+                <ns1:billing_errors xsi:nil="true"/>
+                <ns1:master_plans_assigned xsi:nil="true"/>
+                <ns1:invoice_info xsi:nil="true"/>
+            </ns1:out_acct>
+        </ns1:create_acct_complete_mResponseElement>
+    </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>

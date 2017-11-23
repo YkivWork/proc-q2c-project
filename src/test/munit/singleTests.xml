@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+      xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+      xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+      xmlns:spring="http://www.springframework.org/schema/beans"
+      xmlns:core="http://www.mulesoft.org/schema/mule/core"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xmlns:mock="http://www.mulesoft.org/schema/mule/mock"
+      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/mock http://www.mulesoft.org/schema/mule/mock/current/mule-mock.xsd">
+
+    <munit:config name="munit" doc:name="MUnit configuration"/>
+
+    <spring:beans>
+        <spring:import resource="classpath:single.xml"/>
+        <spring:import resource="classpath:createmdrxrefs.xml"/>
+        <spring:import resource="classpath:globals.xml"/>
+    </spring:beans>
+
+    <munit:test name="parseSingleAriaResponseHandlesCreatesCorrectly" description="Test">
+        <mock:when messageProcessor="mule:flow" doc:name="Mock">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="addAccountMPIs"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[]" mimeType="application/java"/>
+        </mock:when>
+
+        <set-payload value="#[getResource('examples/createAriaAccountResponse.xml').asString()]" mimeType="application/xml"/>
+
+        <flow-ref name="parseSingleAriaResponse" doc:name="parseSingleAriaResponse"/>
+
+        <munit:assert-on-equals message="planInstanceNumber is invalid" expectedValue="2824802" actualValue="#[sessionVars.ariaResponse.planInstanceNumber]" doc:name="Assert Equals"/>
+        <munit:assert-on-equals message="accountNumber is invalid" expectedValue="1950718" actualValue="#[sessionVars.ariaResponse.accountNumber]" doc:name="Assert Equals"/>
+        <munit:assert-on-equals message="errorMessage is invalid" expectedValue="OK" actualValue="#[sessionVars.ariaResponse.errorMessage]" doc:name="Assert Equals"/>
+    </munit:test>
+
+    <munit:test name="parseSingleAriaResponseHandlesUpdatesCorrectly" description="Test">
+        <mock:when messageProcessor="mule:flow" doc:name="Mock">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="addAccountMPIs"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[]" mimeType="application/java"/>
+        </mock:when>
+
+        <set-payload value="#[getResource('examples/updateAriaAcctPlanMultiResponse.xml').asString()]" mimeType="application/xml"/>
+
+        <flow-ref name="parseSingleAriaResponse" doc:name="parseSingleAriaResponse"/>
+
+        <munit:assert-on-equals message="planInstanceNumber is invalid" expectedValue="2803272" actualValue="#[sessionVars.ariaResponse.planInstanceNumber]" doc:name="Assert Equals"/>
+        <munit:assert-on-equals message="accountNumber is invalid" expectedValue="1871743" actualValue="#[sessionVars.ariaResponse.accountNumber]" doc:name="Assert Equals"/>
+        <munit:assert-on-equals message="errorMessage is invalid" expectedValue="OK" actualValue="#[sessionVars.ariaResponse.errorMessage]" doc:name="Assert Equals"/>
+    </munit:test>
+
+    <munit:test name="parseSingleAriaResponseHandlesErrorsCorrectly" description="Test">
+        <mock:when messageProcessor="mule:flow" doc:name="Mock">
+            <mock:with-attributes>
+                <mock:with-attribute name="name" whereValue="addAccountMPIs"/>
+            </mock:with-attributes>
+            <mock:then-return payload="#[]" mimeType="application/java"/>
+        </mock:when>
+
+        <set-payload value="#[getResource('ariaResponses/createAcctCompleteError.xml').asString()]" mimeType="application/xml"/>
+
+        <flow-ref name="parseSingleAriaResponse" doc:name="parseSingleAriaResponse"/>
+
+        <munit:assert-on-equals message="This should not happen" expectedValue="Not to occur" actualValue="This point should not be reached because of the filter in the flow." doc:name="Assert Equals"/>
+    </munit:test>
+</mule>

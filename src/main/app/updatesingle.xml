@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <flow name="updateSingle" processingStrategy="synchronous">
+
+        <set-session-variable variableName="billedParty" value="#[sessionVars.projectModel.billedParties[0]]" doc:name="Set Billed Party For Use"/>
+        <choice doc:name="Billed Party Directive Operation">
+            <when expression="#[sessionVars.billedParty.billedPartyDirective.billedPartyOperation.toString() == &quot;UPDATE&quot;]">
+                <choice doc:name="Billed Party Directive Bill To Workflow Needed">
+                    <when expression="#[sessionVars.billedParty.billedPartyDirective.billToWorkFlow]">
+                        <flow-ref name="billToWorkflow" doc:name="billToWorkflow"/>
+                    </when>
+                    <otherwise>
+                        <logger message="Aria Workflow Call not needed" level="INFO" category="com.merrillcorp.logging" doc:name="Aria WF Not Needed"/>
+                    </otherwise>
+                </choice>
+                <flow-ref name="updatePlan" doc:name="updatePlan"/>
+                <flow-ref name="updateAriaAcctContacts" doc:name="updateAriaAcctContacts"/>
+                <flow-ref name="mdrEndDate" doc:name="Flow Reference"/>
+            </when>
+            <otherwise>
+                <flow-ref name="newSingle" doc:name="newSingle"/>
+                <flow-ref name="mdrEndDate" doc:name="mdrEndDate"/>
+<!--                 <flow-ref name="addAccountMPIs" doc:name="addAccountMPIs"/>  -->
+                <choice doc:name="Billed Party Directive Bill To Workflow Needed">
+                    <when expression="#[sessionVars.billedParty.billedPartyDirective.billToWorkFlow]">
+                        <expression-component doc:name="Expression"><![CDATA[sessionVars.billedParty.updateToBeAriaAccounts(sessionVars.ariaResponse.accountNumber, sessionVars.ariaResponse.planInstanceNumber);]]></expression-component>
+                        <flow-ref name="billToWorkflow" doc:name="billToWorkflow"/>
+                    </when>
+                    <otherwise>
+                        <logger level="INFO" category="com.merrillcorp.logging" doc:name="Success"/>
+                    </otherwise>
+                </choice>
+            </otherwise>
+        </choice>
+        <logger level="INFO" category="com.merrillcorp.logging" doc:name="Success"/>
+        
+    </flow>
+</mule>

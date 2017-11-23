@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+       xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+       xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+       xmlns:spring="http://www.springframework.org/schema/beans" 
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <flow name="mdrEndDate" processingStrategy="synchronous">
+        <expression-component doc:name="Expression"><![CDATA[sessionVars.projectModel.cleanupMDR();]]></expression-component>
+        <foreach collection="sessionVars.projectModel.crossRefs" doc:name="For Each Project Cross Ref">
+            <set-session-variable variableName="xref" value="#[payload]" doc:name="Session Variable"/>
+            <choice doc:name="Choice">
+                <when expression="#[xref.doEndDate &amp;&amp; xref.identifierTypeKey != &quot;Aria_Acct&quot;]">
+                    <flow-ref name="endDateMdrProj" doc:name="endDateMdrProj"/>
+                </when>
+                <when expression="#[xref.doEndDate &amp;&amp; xref.identifierTypeKey == &quot;Aria_Acct&quot;]">
+                    <flow-ref name="endDateAriaAcctToSfProjXRef" doc:name="Flow Reference"/>
+                </when>
+                <otherwise>
+                    <logger message="No End Date Needed" level="INFO" category="com.merrillcorp.logging.mdr.mdrenddate" doc:name="No End Date Needed"/>
+                </otherwise>
+            </choice>
+        </foreach>
+
+    </flow>
+
+    <flow name="endDateMdrProj" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.mdrenddate"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="797f6d59-1b4a-438b-9c19-aa6df085d620">
+            <dw:input-session-variable  variableName="mdrSyncBilledParty"/>
+            <dw:input-session-variable mimeType="application/java" variableName="xref"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    entity_type_key:sessionVars.xref.entityTypeKey,
+    on_id_type_key:"SF_PROJ",
+    on_id_value:sessionVars.projectModel.sourceData.projectSfdcId,
+    add_id_type_key:sessionVars.xref.identifierTypeKey,
+    add_id_value:sessionVars.xref.identifierValue,
+    add_qualifier1_key:sessionVars.xref.qualifier1Key,
+    add_qualifier1_value:sessionVars.xref.qualifier1Value,
+    add_start_date: sessionVars.xref.startDate,
+  	add_end_date: (now as :date) as :string {format: 'yyyy-MM-dd'}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.sync" doc:name="End of Flow Logger"/>
+    </flow>
+
+    <flow name="endDateAriaAcctToSfProjXRef" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.xrefs" doc:name="Start of Flow Logger"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    entity_type_key:sessionVars.xref.entityTypeKey,
+    on_id_type_key:"SF_PROJ",
+    on_id_value:sessionVars.projectModel.sourceData.projectSfdcId,
+    add_id_type_key:sessionVars.xref.identifierTypeKey,
+    add_id_value:sessionVars.xref.identifierValue,
+    add_qualifier1_key:sessionVars.xref.qualifier1Key,
+    add_qualifier1_value:sessionVars.xref.qualifier1Value,
+    add_qualifier2_key: sessionVars.xref.qualifier2Key,
+    add_qualifier2_value: sessionVars.xref.qualifier2Value,
+    add_start_date: sessionVars.xref.startDate,
+  	add_end_date: (now as :date) as :string {format: 'yyyy-MM-dd'}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="createXrefCallResponse" doc:name="createXrefCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.xrefs" doc:name="End of Flow Logger"/>
+    </flow>
+
+
+
+
+</mule>

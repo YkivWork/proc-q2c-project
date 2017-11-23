@@ -1,0 +1,51 @@
+package com.merrillcorp.enterprise.canonical.models;
+global org.mule.module.bpm.MessageService mule;
+ 
+rule "NewToAria" salience 50
+lock-on-active
+	when
+		$p: Project()
+		$mpiCount: Number()
+		accumulate(CrossRef(ientifierTypeKey == "ARIA_MPI") from $p.getCrossRefs(); $mpiCount: count(1) )
+	then
+		$p.getProjectDirectives().setNewToAria($mpiCount > 0);
+end
+
+rule "SingleOrSplit" salience 50
+lock-on-active
+	when
+		$p : Project()
+			accumulate(CrossRef(identifierTypeKey == "ARIA_MPI") from $p.getCrossRefs(); $cnt: count(1) );
+	then
+		$p.getProjectDirectives().setSplitBill($cnt > 1);
+end
+
+
+
+rule "FlowTypeNewSingle"  
+	when
+		$p: Project().getProjectDirectives(newToAria == Boolean.TRUE && splitBill == Boolean.FALSE);
+	then
+		$p.Project().getProjectDirectives().setProjectFlowType(FlowType.NEWSINGLE);
+end
+
+rule "FlowTypeUpdateSingle"
+	when
+		$p: Project().getProjectDirectives(newToAria == false && splitBill == false);
+	then
+		$p.Project().getProjectDirectives().setProjectFlowType(FlowType.UPDATESINGLE);
+end
+
+rule "FlowTypeNewSplit"
+	when
+		$p: Project().getProjectDirectives(newToAria == true && splitBill == true);
+	then
+		$p.Project().getProjectDirectives().setProjectFlowType(FlowType.NEWSPLIT);
+end
+
+rule "FlowTypeUpdateSplit"
+	when
+		$p: Project().getProjectDirectives(newToAria == false && splitBill == true);
+	then
+		$p.Project().getProjectDirectives().setProjectFlowType(FlowType.UPDATESPLIT);
+end

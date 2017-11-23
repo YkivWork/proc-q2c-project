@@ -1,0 +1,274 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <flow name="newSingleAriaPlan" processingStrategy="synchronous">
+<logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.newplan"/>
+        <set-variable variableName="currentAriaAccountId" value="#[sessionVars.billedParty.getBillingSystemAccountId(sessionVars.projectModel.getSourceData())]" doc:name="Variable"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="0cac10e1-2734-4099-9c1d-d130503288ea">
+            <dw:input-payload/>
+            <dw:input-variable mimeType="application/java" variableName="billedParty"/>
+            <dw:input-session-variable mimeType="application/java" variableName="projectModel"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace soap http://schemas.xmlsoap.org/soap/envelope/
+
+%var promotionalDiscount = sessionVars.projectModel.sourceData.promotionalDiscount
+%function couponMapping() {
+  coupon_cd: promotionalDiscount,
+  coupon_directive: 0 when promotionalDiscount == null otherwise 1
+}
+---
+{
+	soap#Envelope: {
+		soap#Header: {},
+		soap#Body: {
+			update_acct_plan_multi_m @(xmlns: p('aria.update_acct_plan_multi.url')): {
+			client_no: p('aria.client_no'),
+			auth_key: p('aria.auth_key'),
+			acct_no: sessionVars.billedParty.billingSystemAccountId,
+			do_write: sessionVars.projectModel.projectDirective.ariaDoWrite,
+			assignment_directive: 3,
+			plan_updates: {
+				plan_updates_row: {
+					plan_directive: 1,
+					new_client_plan_id: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.clientPlanId,
+					(plan_status_cd: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.planInstanceStatus) when sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.planInstanceStatus != null,
+					billing_group_idx: 1,
+
+					(coupon_code_updates: {
+						coupon_code_updates_row: couponMapping()
+					}) when promotionalDiscount != null,
+
+					dunning_group_no: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemDunningGroupId,
+					plan_instance_idx: 1,
+					po_num: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.poNumber,
+					plan_instance_field_update: {
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "BILL_TO_ADDRESS_IDS",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.billingAddressIds,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "BUSINESS_UNIT",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.businessUnit,
+							plan_instance_field_directive: 2
+						},
+						(plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTINUATION_DATE",
+							plan_instance_field_value: sessionVars.projectModel.sourceData.continuationDate,
+							plan_instance_field_directive: 2
+						}) when sessionVars.projectModel.sourceData.continuationDate != null,
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTINUATION_RATE",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.continuationRate,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTINUATION_RATE_SM",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.continuationRateSpecialMedia,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTRACT_CUSTOMER",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractCustomer,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTRACT_CUSTOMER_ADDRESS",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractCustomerAddress,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTRACT_CUSTOMER_CONTACT",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractCustomerContact,
+							plan_instance_field_directive: 2
+						},						
+                        plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTRACT_MINIMUM_FEE",
+							plan_instance_field_value: sessionVars.projectModel.sourceData.minimumFee,
+							plan_instance_field_directive: 2
+						},                                  
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "CONTRACT_TERM",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractTerm,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "COUNTRY_OF_ISSUER",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.countryOfIssuer,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "CURRENT_ENTITLEMENT",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.currentEntitlement,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "EFFECTIVE_DATE",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.effectiveDate,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "HIBERNATION_RATE",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.hibernationRate,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "HIBERNATION_RATE_SM",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.hibernationRateSpecialMedia,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "MEDIA_USED",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.mediaUsed,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "MEDIA_INCLUDED",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.mediaIncluded,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "OPERATING_UNIT_NAME",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.operatingUnitName,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "PRIMARY_REP_ID",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.primaryRepId,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "PRIMARY_REP_NAME",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.primaryRepName,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "PRIMARY_SERVICE_SITE",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.primaryServiceSite,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "PROCESSED_FOR_CONTRACT_MINIMUM",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.processedForContractMinimum,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "PRODUCT_TYPE",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.productType,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "PROJECT_CREATION_DATE",
+							plan_instance_field_value: (sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.projectCreationDate as :date) as :string{format: 'yyyy-MM-dd'},
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "PROJECT_PHASE",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.projectPhase,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "REVENUE_SITE",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.revenueSite,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "SALESFORCE_PROJECT_ID",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.salesforceProjectId,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "SALESFORCE_PROJECT_NAME",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.salesforceProjectName,
+							plan_instance_field_directive: 2
+						},
+						plan_instance_field_update_row: {
+							plan_instance_field_name: "SALESREP_SPLIT_AMOUNT",
+							plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.salesRepSplitAmount,
+							plan_instance_field_directive: 2
+						}
+					}
+				},
+				(sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.suppPlans map ((suppPlan, indexOfSuppPlan) -> {
+					plan_updates_row: {
+						new_client_plan_id: suppPlan.clientPlanId,
+						plan_directive: 1,
+                        parent_plan_instance_idx: 1,
+						(plan_status_cd: suppPlan.suppPlanInstanceStatusCd) when suppPlan.suppPlanInstanceStatusCd != null,
+						custom_rates: {
+							(suppPlan.customRates map ((customRate , indexOfCustomRate) -> {
+								custom_rates_row: {
+									custom_rate_client_service_id: customRate.customRateClientServiceId,
+									custom_rate_seq_no: customRate.customRateSequenceNumber ,
+									custom_rate_from_unit: customRate.customRateFromUnit,
+									custom_rate_to_unit: customRate.customRateToUnit,
+									custom_rate_per_unit: customRate.customRatePerUnit
+								}
+							}))
+						},
+						plan_service_updates: {
+						(suppPlan.suppPlanServices map ((suppPlanService , indexOfSuppPlanService) -> {
+							plan_service_updates_row: {
+								client_service_id: suppPlanService.clientServiceId,
+								client_svc_location_id: suppPlanService.clientServiceLocationId
+							}
+						}))
+					}
+					}
+				}))
+			},
+			acct_billing_groups: {
+				acct_billing_groups_row: {
+					billing_group_directive: 1,
+					billing_group_name: sessionVars.billedParty.toBeBillingSystemAccount.billingGroup.name,
+					billing_group_idx: 1,
+					statement_template: sessionVars.billedParty.toBeBillingSystemAccount.billingGroup.statementTemplate,
+					credit_note_template: sessionVars.billedParty.toBeBillingSystemAccount.billingGroup.creditNoteTemplate,
+					credit_memo_template: sessionVars.billedParty.toBeBillingSystemAccount.billingGroup.creditMemoTemplate,
+					rebill_template: sessionVars.billedParty.toBeBillingSystemAccount.billingGroup.rebillTemplate,
+					stmt_contact_idx: 1
+				}
+			},
+			contacts: {
+				contacts_row: {
+					contact_idx: 1,
+					first_name: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].firstName,
+					last_name: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].lastName,
+					company_name: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].companyName,
+					address1: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].address1,
+					address2: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].address2,
+					address3: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].address3,
+					city: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].city,
+					locality: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].locality,
+					state_prov: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].stateProvince,
+					country: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].country,
+					postal_cd: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].postalCode,
+					phone: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].phone,
+					email: sessionVars.billedParty.toBeBillingSystemAccount.contacts[0].email
+				}
+			}
+		}
+	}
+}
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <http:request config-ref="Aria_Request_Configuration" path="${aria.path}" method="POST" doc:name="PostToAria">
+            <http:request-builder>
+                <http:header headerName="SOAPAction" value="&quot;update_acct_complete_m&quot;"/>
+            </http:request-builder>
+        </http:request>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.newplan" doc:name="End of Flow Logger"/>
+        
+    </flow>
+</mule>
+
+    	

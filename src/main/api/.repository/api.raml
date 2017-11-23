@@ -1,0 +1,34 @@
+#%RAML 1.0
+title: proc-q2c-project
+version: 1.0
+baseUri: http://127.0.0.1/api/{version}
+documentation: 
+  - title: Home
+    content: | 
+      This is the project process layer that contains the business logic and data aggragations necessary to move a "project through the **Quote to Cash** process. This process layer implements business logic via Drools rules using the built in .jar files contained in the *Mule Runtime*
+description: | 
+      This is the project process layer that contains the business logic and data aggragations necessary to move a "project through the **Quote to Cash** process. This process layer implements business logic via Drools rules using the built in .jar files contained in the *Mule Runtime* 
+protocols: HTTPS
+mediaType: application/json
+
+/projects/new-projects:
+  post:
+    description: This Endpoint Exposes the Ability to Process a New Project via Posting an *Project Object* from **Salesforce**
+    body:
+      application/json:
+    responses:
+      200:
+        body:
+          application/json:
+            default: {Status: "Salesforce Connection Not Available"}
+            example: {Status: "Salesforce Connection Not Available"}
+      400:
+        body:
+          application/json:
+            default: {Status: "Salesforce Connection Not Available"}
+            example: {Status: "Salesforce Connection Not Available"}
+      500:
+        body:
+          application/json:
+            default: {Status: "Internal Server Error"}
+            example: {Status: "Internal Server Error"}

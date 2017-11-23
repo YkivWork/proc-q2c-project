@@ -1,0 +1,311 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <http:listener-config name="api-httpListenerConfig" host="0.0.0.0" port="8092" doc:name="HTTP Listener Configuration" protocol="HTTPS">
+        <tls:context>
+            <tls:key-store type="jks" path="sslkeys/${mule.env}-keystore.jks" keyPassword="password" password="password"/>
+        </tls:context>
+    </http:listener-config>
+    <apikit:config name="api-config" raml="api.raml" consoleEnabled="false" doc:name="Router"/>
+    <flow name="api-main">
+        <http:listener config-ref="api-httpListenerConfig" path="/api/*" doc:name="HTTP"/>
+        <apikit:router config-ref="api-config" doc:name="APIkit Router"/>
+        <exception-strategy ref="api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy"/>
+    </flow>
+    <flow name="api-console" processingStrategy="synchronous">
+        <http:listener config-ref="api-httpListenerConfig" path="/console/*" doc:name="HTTP"/>
+        <apikit:console config-ref="api-config" doc:name="APIkit Console"/>
+    </flow>
+    <flow name="get:/project/testing:api-config">
+        <set-payload value="{
+    &quot;activeDate&quot;: &quot;2017-10-31&quot;,
+    &quot;adminEmail&quot;: null,
+    &quot;billingEffectiveDate&quot;: &quot;2017-11-30&quot;,
+    &quot;businessUnit&quot;: &quot;Datasite&quot;,
+    &quot;closedDate&quot;: null,
+    &quot;closureMediaInclude&quot;: &quot;1.0&quot;,
+    &quot;closureRequestedDate&quot;: null,
+    &quot;continuationDate&quot;: &quot;2018-04-30&quot;,
+    &quot;continuationRate&quot;: &quot;0.16&quot;,
+    &quot;continuationRateSM&quot;: &quot;2.5&quot;,
+    &quot;contractCustomer&quot;: &quot;Aaron Test, 123 electric ave My Town MN 55116 US, Billy Madison bm@adison.com.org&quot;,
+    &quot;contractTerm&quot;: &quot;6.0&quot;,
+    &quot;countryOfIssuer&quot;: &quot;US&quot;,
+    &quot;createdAt&quot;: &quot;2017-10-31T18:27:58.000Z&quot;,
+    &quot;currency&quot;: &quot;USD&quot;,
+    &quot;dataCenter&quot;: &quot;USA&quot;,
+    &quot;datasiteOneId&quot;: &quot;59f8c12c567820000e46ac0c&quot;,
+    &quot;hibernateDate&quot;: null,
+    &quot;hibernationRate&quot;: &quot;0.06&quot;,
+    &quot;hibernationRateSM&quot;: &quot;1.0&quot;,
+    &quot;legalEntity&quot;: &quot;010 - MERRILL COMMUNICATIONS LLC&quot;,
+    &quot;minimumFee&quot;: &quot;25.0&quot;,
+    &quot;modifiedAt&quot;: &quot;2017-11-01T14:43:14.000Z&quot;,
+    &quot;name&quot;: &quot;QA Test CM Oct 31_1&quot;,
+    &quot;operatingUnitId&quot;: &quot;21&quot;,
+    &quot;operatingUnitName&quot;: &quot;US_OU-MERRILL CORPORATION&quot;,
+    &quot;primaryServiceSite&quot;: &quot;STP&quot;,
+    &quot;productType&quot;: &quot;Asset Purchase&quot;,
+    &quot;payloadCreateDate&quot;: &quot;2017-10-31&quot;,
+    &quot;projectSfdcId&quot;: &quot;a270U0000008Vg2QAE11&quot;,
+    &quot;projectStatus&quot;: &quot;Active&quot;,
+    &quot;promotionalDiscount&quot;: &quot;25p_5month&quot;,
+    &quot;retroStartDate&quot;: null,
+    &quot;revenueSite&quot;: &quot;DFW&quot;,
+    &quot;sales&quot;: null,
+    &quot;specialMediaRate&quot;: &quot;10.0&quot;,
+    &quot;suspendedDate&quot;: null,
+    &quot;tier1Rate&quot;: &quot;0.89&quot;,
+    &quot;tier1UpperLimit&quot;: &quot;10000.0&quot;,
+    &quot;tier2Rate&quot;: &quot;0.85&quot;,
+    &quot;tier2UpperLimit&quot;: &quot;20000.0&quot;,
+    &quot;tier3Rate&quot;: &quot;0.82&quot;,
+    &quot;tier3UpperLimit&quot;: &quot;30000.0&quot;,
+    &quot;tier4Rate&quot;: &quot;0.78&quot;,
+    &quot;tier4UpperLimit&quot;: null,
+    &quot;tier5Rate&quot;: null,
+    &quot;tier5UpperLimit&quot;: null,
+    &quot;tier6Rate&quot;: null,
+    &quot;tier6UpperLimit&quot;: null,
+    &quot;tier7Rate&quot;: null,
+    &quot;tier7UpperLimit&quot;: null,
+    &quot;tier8Rate&quot;: null,
+    &quot;tier8UpperLimit&quot;: null,
+    &quot;tier9Rate&quot;: null,
+    &quot;tier9UpperLimit&quot;: null,
+    &quot;tier10Rate&quot;: null,
+    &quot;tier10UpperLimit&quot;: null,
+    &quot;unitOfMeasure&quot;: &quot;Page&quot;,
+    &quot;salesReps&quot;: [
+        {
+            &quot;isPrimary&quot;: &quot;false&quot;,
+            &quot;splitPercentage&quot;: &quot;30.0&quot;,
+            &quot;employeeNumber&quot;: &quot;19598&quot;,
+            &quot;name&quot;: &quot;Angela Pedersen&quot;
+        },
+        {
+            &quot;isPrimary&quot;: &quot;true&quot;,
+            &quot;splitPercentage&quot;: &quot;70.0&quot;,
+            &quot;employeeNumber&quot;: &quot;20407&quot;,
+            &quot;name&quot;: &quot;Nicholas Renter&quot;
+        }
+    ],
+    &quot;integrationMetadata&quot;: {
+        &quot;sfdcId&quot;: &quot;a4O0U0000004ClEUAU&quot;,
+        &quot;aggregateDetailsSinceLastSuccess&quot;: null,
+        &quot;ariaCreatedDate&quot;: null,
+        &quot;currentRunStartedDate&quot;: null,
+        &quot;currentRunTransactionId&quot;: null,
+        &quot;datasiteOneCreatedDate&quot;: null,
+        &quot;lastCompletedProjectStatus&quot;: &quot;Active&quot;,
+        &quot;lastIntegrationStartDate&quot;: null,
+        &quot;lastIntegrationTransactionId&quot;: null,
+        &quot;lastRunErrorDetails&quot;: null,
+        &quot;lastRunResults&quot;: null,
+        &quot;oracleCreatedDate&quot;: null,
+        &quot;pendingStatusChange&quot;: null,
+        &quot;pendingStatusChangeDate&quot;: null,
+        &quot;pendingStatusChangeCompletedDate&quot;: null,
+        &quot;uncertainStateInAria&quot;: &quot;false&quot;,
+        &quot;uncertainStateInDatasiteOne&quot;: &quot;false&quot;,
+        &quot;uncertainStateInOracle&quot;: &quot;false&quot;
+    },
+    &quot;companies&quot;: [
+        {
+            &quot;customerOrderNumber&quot;: null,
+            &quot;email&quot;: &quot;cmellang.test@gmail.com&quot;,
+            &quot;firstName&quot;: &quot;QA Test CM Oct 31_1&quot;,
+            &quot;lastName&quot;: &quot;Mellang&quot;,
+            &quot;name&quot;: &quot;DSOC-254&quot;,
+            &quot;phone&quot;: &quot;(651) 632-4598&quot;,
+            &quot;billable&quot;: false,
+            &quot;sfdcId&quot;: &quot;a3j0U0000008OlqQAE&quot;,
+            &quot;retroChange&quot;: false,
+            &quot;billingSplit&quot;: &quot;100.0&quot;,
+            &quot;billingAddress&quot;: {
+                &quot;address1&quot;: &quot;11333 Avenue of the Americas&quot;,
+                &quot;address2&quot;: &quot;Suite 435&quot;,
+                &quot;address3&quot;: null,
+                &quot;city&quot;: &quot;New York&quot;,
+                &quot;country&quot;: &quot;US&quot;,
+                &quot;locality&quot;: null,
+                &quot;middleInitial&quot;: null,
+                &quot;name&quot;: &quot;BA-085&quot;,
+                &quot;oracleSiteId&quot;: &quot;7984&quot;,
+                &quot;postalCode&quot;: &quot;10036&quot;,
+                &quot;sfdcId&quot;: &quot;a3h0U0000008OJpQAM&quot;,
+                &quot;stateProvince&quot;: &quot;NY&quot;
+            },
+            &quot;billingCompany&quot;: {
+                &quot;name&quot;: &quot;ZS Fund L.P.&quot;,
+                &quot;oracleAccountId&quot;: &quot;2525&quot;,
+                &quot;oracleAccountNumber&quot;: &quot;2505&quot;,
+                &quot;sfdcId&quot;: &quot;a3i0U0000004Ct9QAE&quot;,
+                &quot;vatRegistration&quot;: null
+            }
+        }
+    ]
+}" mimeType="application/json" doc:name="Set Payload"/>
+        <flow-ref name="createCanonicalModel" doc:name="createCanonicalModel"/>
+    </flow>
+    <flow name="get:/newproject/testing:api-config">
+        <set-payload  mimeType="application/json" doc:name="Set Payload" value="{
+    &quot;activeDate&quot;: &quot;2017-09-20&quot;,
+    &quot;adminEmail&quot;: null,
+    &quot;billingEffectiveDate&quot;: &quot;2017-09-20&quot;,
+    &quot;businessUnit&quot;: &quot;Datasite&quot;,
+    &quot;closureMediaInclude&quot;: &quot;1.0&quot;,
+    &quot;continuationDate&quot;: &quot;2017-10-20&quot;,
+    &quot;continuationRate&quot;: &quot;0.16&quot;,
+    &quot;continuationRateSM&quot;: &quot;2.5&quot;,
+    &quot;contractCustomer&quot;: &quot;Aaron Test, 123 electric ave    US, Billy Madison bm@adison.com.org&quot;,
+    &quot;contractTerm&quot;: &quot;1.0&quot;,
+    &quot;countryOfIssuer&quot;: &quot;US&quot;,
+    &quot;createdAt&quot;: &quot;2017-09-19T22:39:11.000Z&quot;,
+    &quot;currency&quot;: &quot;USD&quot;,
+    &quot;dataCenter&quot;: &quot;US&quot;,
+    &quot;datasiteOneId&quot;: null,
+    &quot;hibernationRate&quot;: &quot;0.06&quot;,
+    &quot;hibernationRateSM&quot;: &quot;1.0&quot;,
+    &quot;legalEntity&quot;: &quot;010 - MERRILL COMMUNICATIONS LLC&quot;,
+    &quot;minimumFee&quot;: &quot;25.0&quot;,
+    &quot;modifiedAt&quot;: &quot;2017-09-20T05:05:00.000Z&quot;,
+    &quot;name&quot;: &quot;MS Test Sep 19 3&quot;,
+    &quot;operatingUnitId&quot;: &quot;21&quot;,
+    &quot;operatingUnitName&quot;: &quot;US_OU-MERRILL CORPORATION&quot;,
+    &quot;primaryServiceSite&quot;: &quot;STP&quot;,
+    &quot;productType&quot;: &quot;Asset Purchase&quot;,
+    &quot;payloadCreateDate&quot;: &quot;2017-09-19&quot;,
+    &quot;projectSfdcId&quot;: &quot;a270U000000007qQAA&quot;,
+    &quot;projectStatus&quot;: &quot;Active&quot;,
+    &quot;promotionalDiscount&quot;: &quot;25p_5month&quot;,
+    &quot;retroStartDate&quot;: null,
+    &quot;revenueSite&quot;: &quot;DFW&quot;,
+    &quot;sales&quot;: null,
+    &quot;specialMediaRate&quot;: &quot;10.0&quot;,
+    &quot;tier1Rate&quot;: &quot;0.89&quot;,
+    &quot;tier1UpperLimit&quot;: &quot;10000.0&quot;,
+    &quot;tier2Rate&quot;: &quot;0.85&quot;,
+    &quot;tier2UpperLimit&quot;: &quot;20000.0&quot;,
+    &quot;tier3Rate&quot;: &quot;0.82&quot;,
+    &quot;tier3UpperLimit&quot;: &quot;30000.0&quot;,
+    &quot;tier4Rate&quot;: &quot;0.78&quot;,
+    &quot;tier4UpperLimit&quot;: null,
+    &quot;tier5Rate&quot;: null,
+    &quot;tier5UpperLimit&quot;: null,
+    &quot;tier6Rate&quot;: null,
+    &quot;tier6UpperLimit&quot;: null,
+    &quot;tier7Rate&quot;: null,
+    &quot;tier7UpperLimit&quot;: null,
+    &quot;tier8Rate&quot;: null,
+    &quot;tier8UpperLimit&quot;: null,
+    &quot;tier9Rate&quot;: null,
+    &quot;tier9UpperLimit&quot;: null,
+    &quot;tier10Rate&quot;: null,
+    &quot;tier10UpperLimit&quot;: null,
+    &quot;unitOfMeasure&quot;: &quot;Page&quot;,
+    &quot;salesReps&quot;: [
+        {
+            &quot;isPrimary&quot;: &quot;false&quot;,
+            &quot;splitPercentage&quot;: &quot;25.0&quot;,
+            &quot;employeeNumber&quot;: &quot;19598&quot;,
+            &quot;name&quot;: &quot;Angela Pedersen&quot;
+        },
+        {
+            &quot;isPrimary&quot;: &quot;true&quot;,
+            &quot;splitPercentage&quot;: &quot;75.0&quot;,
+            &quot;employeeNumber&quot;: &quot;20407&quot;,
+            &quot;name&quot;: &quot;Nicholas Renter&quot;
+        }
+    ],
+    &quot;integrationMetadata&quot;: {
+        &quot;sfdcId&quot;: &quot;a4O0U0000008ONcUAM&quot;,
+        &quot;aggregateDetailsSinceLastSuccess&quot;: null,
+        &quot;ariaCreatedDate&quot;: null,
+        &quot;currentRunStartedDate&quot;: null,
+        &quot;currentRunTransactionId&quot;: null,
+        &quot;datasiteOneCreatedDate&quot;: null,
+        &quot;lastCompletedProjectStatus&quot;: &quot;Build Period&quot;,
+        &quot;lastIntegrationStartDate&quot;: null,
+        &quot;lastIntegrationTransactionId&quot;: null,
+        &quot;lastRunErrorDetails&quot;: null,
+        &quot;lastRunResults&quot;: null,
+        &quot;oracleCreatedDate&quot;: null,
+        &quot;pendingStatusChange&quot;: null,
+        &quot;pendingStatusChangeDate&quot;: null,
+        &quot;pendingStatusChangeCompletedDate&quot;: null,
+        &quot;uncertainStateInAria&quot;: &quot;false&quot;,
+        &quot;uncertainStateInDatasiteOne&quot;: &quot;false&quot;,
+        &quot;uncertainStateInOracle&quot;: &quot;false&quot;
+    },
+    &quot;companies&quot;: [
+        {
+            &quot;customerOrderNumber&quot;: null,
+            &quot;email&quot;: &quot;test@gmail.com&quot;,
+            &quot;firstName&quot;: &quot;Test&quot;,
+            &quot;lastName&quot;: &quot;Test&quot;,
+            &quot;name&quot;: &quot;DSOC-078&quot;,
+            &quot;phone&quot;: null,
+            &quot;billable&quot;: false,
+            &quot;sfdcId&quot;: &quot;a3j0U0000004CFCQA2&quot;,
+            &quot;retroChange&quot;: false,
+            &quot;billingSplit&quot;: &quot;100.0&quot;,
+            &quot;billingAddress&quot;: {
+                &quot;address1&quot;: &quot;3 Park Plaza&quot;,
+                &quot;address2&quot;: &quot;Suite 1260&quot;,
+                &quot;address3&quot;: null,
+                &quot;city&quot;: &quot;Irvine&quot;,
+                &quot;country&quot;: &quot;US&quot;,
+                &quot;locality&quot;: null,
+                &quot;middleInitial&quot;: null,
+                &quot;name&quot;: &quot;BA-135&quot;,
+                &quot;oracleSiteId&quot;: &quot;30975&quot;,
+                &quot;postalCode&quot;: &quot;92614&quot;,
+                &quot;sfdcId&quot;: &quot;a3h0U0000008OKdQAM&quot;,
+                &quot;stateProvince&quot;: &quot;CA&quot;
+            },
+            &quot;billingCompany&quot;: {
+                &quot;name&quot;: &quot;Menter &amp; Witkin&quot;,
+                &quot;oracleAccountId&quot;: &quot;27446&quot;,
+                &quot;oracleAccountNumber&quot;: &quot;26686&quot;,
+                &quot;sfdcId&quot;: &quot;a3i0U0000004CtiQAE&quot;,
+                &quot;vatRegistration&quot;: null
+            }
+        }
+    ]
+}"/>
+        <set-session-variable variableName="updatePlanStatus" value="#['true']" doc:name="Session Variable"/>
+        <flow-ref name="createCanonicalModel" doc:name="createCanonicalModel"/>
+    </flow>
+    <apikit:mapping-exception-strategy name="api-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property"/>
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload"/>
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>

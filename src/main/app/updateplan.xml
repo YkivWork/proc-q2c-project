@@ -1,0 +1,387 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <flow name="updatePlan" processingStrategy="synchronous">
+        <choice doc:name="Is Proration Needed">
+            <when expression="#[sessionVars.projectModel.projectDirective.prorationNeeded]">
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Proration Needed=#[sessionVars.projectModel.projectDirective.prorationNeeded]" level="INFO" doc:name="Chocie Logger" category="com.merrillcorp.choice.updateplan"/>
+                <flow-ref name="prorationWorkflow" doc:name="prorationWorkflow"/>
+            </when>
+            <otherwise>
+                <logger level="INFO" doc:name="Choice Logger" category="com.merrillcorp.choice.updateplan" message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Proration Needed=#[sessionVars.projectModel.projectDirective.prorationNeeded]"/>
+            </otherwise>
+        </choice>
+<!--         <flow-ref name="updateAriaAcctContacts" doc:name="updateAriaAcctContacts"/> -->
+        <flow-ref name="updateAriaAcctPlanMulti" doc:name="updateAriaAcctPlanMulti"/>
+        
+    </flow>
+    <flow name="updateAriaAcctContacts" processingStrategy="synchronous">
+        <dw:transform-message doc:name="Transform Message" metadata:id="a50cf929-1bf0-4568-bd02-217282b96c8d">
+            <dw:input-session-variable variableName="projectModel"/>
+            <dw:input-session-variable mimeType="application/java" variableName="billedParty"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace soap http://schemas.xmlsoap.org/soap/envelope/
+
+%var toBeContact = sessionVars.billedParty.toBeBillingSystemAccount.contacts[0]
+---
+{
+  soap#Envelope: {
+    soap#Header: {},
+    soap#Body: {
+      update_contact_m @(xmlns: p('aria.update_contact.url')): {
+        client_no: p('aria.client_no'),
+        auth_key: p('aria.auth_key'),
+        acct_no: sessionVars.billedParty.billingSystemAccountId,
+        contact_ind: 4,
+        billing_group_no: sessionVars.billedParty.toBeBillingSystemAccount.billingGroup.billingGroupNumber,
+        first_name: toBeContact.firstName,
+        last_name: toBeContact.lastName,
+        company_name: sessionVars.billedParty.toBeBillingSystemAccount.companyName,
+        address1: toBeContact.address1,
+        address2: toBeContact.address2,
+        address3: toBeContact.address3,
+        city: toBeContact.city,
+        locality: toBeContact.locality,
+        state_prov: toBeContact.stateProvince,
+        country_cd: toBeContact.country,
+        postal_cd: toBeContact.postalCode,
+        phone: toBeContact.phone,
+        email: toBeContact.email
+      }
+    }
+  }
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <http:request config-ref="Aria_Request_Configuration" path="${aria.path}" method="POST" doc:name="Update Account Contacts">
+            <http:request-builder>
+                <http:header headerName="SOAPAction" value="&quot;update_contact_m&quot;"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Parse Update Account Contacts Response">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%var responseElement = payload.Envelope.Body.update_contact_mResponseElement
+---
+{
+  errorMessage: responseElement.error_msg,
+  contactNumber: responseElement.contact_no
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <choice doc:name="Update Status">
+            <when expression="payload.errorMessage == 'OK'">
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Update Status=#[payload.errorMessage]" level="INFO" category="com.merrillcorp.choice.updateariaacctcontacts" doc:name="Choice Logger"/>
+            </when>
+            <otherwise>
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Update Status=#[payload.errorMessage]" level="ERROR" category="com.merrillcorp.choice.updateariaacctcontacts" doc:name="Choice Logger"/>
+                <filter ref="Aria_Response_Evaluation" doc:name="Filter Reference"/>
+            </otherwise>
+        </choice>
+
+    </flow>
+    <flow name="updateAriaAcctPlanMulti" processingStrategy="synchronous">
+
+        <dw:transform-message doc:name="Transform Message" metadata:id="3df011d9-7cb9-4eaa-8d58-49d6e7861f54">
+            <dw:input-variable mimeType="application/java" variableName="billedParty"/>
+            <dw:input-session-variable mimeType="application/java" variableName="billedParty"/>
+            <dw:input-session-variable mimeType="application/java" variableName="projectModel"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace soap http://schemas.xmlsoap.org/soap/envelope/
+---
+{
+	soap#Envelope: {
+		soap#Header: {},
+		soap#Body: {
+			update_acct_plan_multi_m @(xmlns: p('aria.update_acct_plan_multi.url')): {
+				client_no: p('aria.client_no'),
+				auth_key: p('aria.auth_key'),
+				acct_no: sessionVars.billedParty.billingSystemAccountId,
+				do_write: sessionVars.projectModel.projectDirective.ariaDoWrite,
+				assignment_directive: 3,
+				plan_updates: {
+					(sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.suppPlans map ((suppPlan, indexOfSuppPlan) -> {
+						plan_updates_row: {
+
+							existing_client_plan_instance_id: suppPlan.clientSuppPlanInstanceId,
+
+							plan_directive: 3,
+							(plan_status_cd: suppPlan.suppPlanInstanceStatusCd) when suppPlan.suppPlanInstanceStatusCd != null,
+
+							custom_rates: {
+								(suppPlan.customRates map ((customRate , indexOfCustomRate) -> {
+									(custom_rates_row: {
+										custom_rate_client_service_id: customRate.customRateClientServiceId,
+										custom_rate_seq_no: customRate.customRateSequenceNumber,
+										custom_rate_from_unit: customRate.customRateFromUnit,
+										(custom_rate_to_unit: customRate.customRateToUnit) when customRate.customRateToUnit != null,
+										custom_rate_per_unit: customRate.customRatePerUnit 
+									}) when indexOfCustomRate == 10 or indexOfCustomRate -1 < sizeOf suppPlan.customRates,
+									(custom_rates_row: {
+										custom_rate_client_service_id: customRate.customRateClientServiceId,
+										custom_rate_seq_no: customRate.customRateSequenceNumber,
+										custom_rate_from_unit: customRate.customRateFromUnit,
+										(custom_rate_to_unit: customRate.customRateToUnit) when customRate.customRateToUnit != null,
+										custom_rate_per_unit: customRate.customRatePerUnit 
+									})when indexOfCustomRate == sizeOf suppPlan.customRates
+								}))
+							},
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: suppPlan.suppPlanInstanceField.planInstanceFieldName,
+								plan_instance_field_value: suppPlan.suppPlanInstanceField.planInstanceFieldValue,
+								plan_instance_field_directive: suppPlan.suppPlanInstanceField.planInstanceFieldDirective
+							}) when suppPlan.clientPlanId == "GBs_Hosted" or suppPlan.clientPlanId == "MBs_Hosted" or suppPlan.clientPlanId == "Pages_Hosted",
+							
+							(usage_accumulation_reset_months: 99) when suppPlan.clientPlanId == "Special_Media" or suppPlan.clientPlanId == "Special_Media_Hosted"
+						}
+					})),
+
+					plan_updates_row: {
+						plan_directive: 3,
+						existing_plan_instance_no: sessionVars.billedParty.billingSystemMasterPlanInstanceId,
+
+						(plan_status_cd: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.planInstanceStatus) when sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.planInstanceStatus != null,
+
+						po_num: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.poNumber,
+
+						plan_instance_field_update: {
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "ACTIVE_DATE",
+								plan_instance_field_value: sessionVars.projectModel.sourceData.activeDate,
+								plan_instance_field_directive: 2
+							}) when sessionVars.projectModel.sourceData.activeDate != null,
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "ACTIVE_LABEL",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.activeLabel,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "BILL_TO_ADDRESS_IDS",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.billingAddressIds,
+								plan_instance_field_directive: 2
+							},
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "CLOSE_DATE",
+								plan_instance_field_value: sessionVars.projectModel.sourceData.closedDate,
+								plan_instance_field_directive: 2
+							}) when sessionVars.projectModel.sourceData.closedDate != null,
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "CONTINUATION_DATE",
+								plan_instance_field_value: sessionVars.projectModel.sourceData.continuationDate,
+								plan_instance_field_directive: 2
+							}) when sessionVars.projectModel.sourceData.continuationDate != null,
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "CONTINUATION_RATE",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.continuationRate,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "CONTINUATION_RATE_SM",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.continuationRateSpecialMedia,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "CONTRACT_CUSTOMER",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractCustomer,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "CONTRACT_CUSTOMER_ADDRESS",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractCustomerAddress,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "CONTRACT_CUSTOMER_CONTACT",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractCustomerContact,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "CONTRACT_TERM",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.contractTerm,
+								plan_instance_field_directive: 2
+							},
+
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "CURRENT_ENTITLEMENT",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.currentEntitlement,
+								plan_instance_field_directive: 2
+							}) when sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.currentEntitlement != null,
+
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "EFFECTIVE_DATE",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.effectiveDate,
+								plan_instance_field_directive: 2
+							},
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "HIBERNATE_DATE",
+								plan_instance_field_value: sessionVars.projectModel.sourceData.hibernateDate,
+								plan_instance_field_directive: 2
+							}) when sessionVars.projectModel.sourceData.hibernateDate !=  null,
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "HIBERNATE_OUT_DATE",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.hibernateOutDate,
+								plan_instance_field_directive: 2
+							}) when sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.hibernateOutDate !=  null,
+							 plan_instance_field_update_row: {
+								plan_instance_field_name: "HIBERNATION_RATE",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.hibernationRate,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "HIBERNATION_RATE_SM",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.hibernationRateSpecialMedia,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "HISTORICAL_EFFECTIVE_DATE",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.historicalEffectiveDate,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "MEDIA_INCLUDED",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.mediaIncluded,
+								plan_instance_field_directive: 2
+							},
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "PENDING_CLOSE_DATE",
+								plan_instance_field_value: sessionVars.projectModel.sourceData.closureRequestedDate,
+								plan_instance_field_directive: 2
+							}) when sessionVars.projectModel.sourceData.closureRequestedDate != null,
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "PRIMARY_REP_ID",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.primaryRepId,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "PRIMARY_REP_NAME",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.primaryRepName,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "PROJECT_CREATION_DATE",
+								//TODO Need to move this date conversion into the model and not here, same for the other DataWeave's that reference it.
+								plan_instance_field_value: (sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.projectCreationDate as :date) as :string { format: 'yyyy-MM-dd' },
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "PROJECT_PHASE",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.projectPhase,
+								plan_instance_field_directive: 2
+							},
+
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "SALESFORCE_PROJECT_NAME",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.salesforceProjectName,
+								plan_instance_field_directive: 2
+							},
+							plan_instance_field_update_row: {
+								plan_instance_field_name: "SALESREP_SPLIT_AMOUNT",
+								plan_instance_field_value: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.salesRepSplitAmount,
+								plan_instance_field_directive: 2},
+								
+							(plan_instance_field_update_row: {
+								plan_instance_field_name: "SUSPENDED_DATE",
+								plan_instance_field_value: sessionVars.projectModel.sourceData.suspendedDate,
+								plan_instance_field_directive: 2
+							}) when sessionVars.projectModel.sourceData.suspendedDate != null
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+]]></dw:set-payload>
+        </dw:transform-message>
+
+        <http:request config-ref="Aria_Request_Configuration" path="${aria.path}" method="POST" doc:name="Update Acct Plan Multi">
+            <http:request-builder>
+                <http:header headerName="SOAPAction" value="&quot;update_acct_plan_multi_m&quot;"/>
+            </http:request-builder>
+        </http:request>
+        
+        
+        <dw:transform-message doc:name="Parse Update Acct Plan Multi Response">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%var updateResponseElement = payload.Envelope.Body.update_acct_plan_multi_mResponseElement
+---
+{
+  planInstanceNumber: (updateResponseElement.*plans_updated filter $.client_plan_id=="DataSite").client_plan_instance_id[0],
+  accountNumber: updateResponseElement.out_acct_no,
+  errorMessage: updateResponseElement.error_msg
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <choice doc:name="Choice">
+            <when expression="payload.errorMessage == 'OK'">
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Update Status=#[payload.errorMessage]" level="INFO" category="com.merrillcorp.choice.updateariaacctplanmulti" doc:name="Choice Logger"/>
+                <flow-ref name="updateIntegrationMetaData" doc:name="updateIntegrationMetaData"/>
+            </when>
+            <otherwise>
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Update Status=#[payload.errorMessage]" level="ERROR" category="com.merrillcorp.choice.updateariaacctplanmulti" doc:name="Choice Logger"/>
+                <filter ref="Aria_Response_Evaluation" doc:name="Filter Reference"/>
+            </otherwise>
+        </choice>
+        
+    </flow>
+    <flow name="updatePlanStatus" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.single" doc:name="Start of Flow Logger"/>
+        <set-session-variable variableName="billedParty" value="#[sessionVars.projectModel.billedParties[0]]" doc:name="Session Variable"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="50a69c4e-dacb-46f1-b0f0-bbaae64649fd">
+            <dw:input-session-variable mimeType="application/java" variableName="billedParty"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/xml
+%namespace soap http://schemas.xmlsoap.org/soap/envelope/
+---
+{
+	soap#Envelope: {
+		soap#Header: {},
+		soap#Body: {
+			update_acct_plan_status_m @(xmlns: p('aria.update_acct_plan_status.url')): {
+        client_no: p('aria.client_no'),
+        auth_key: p('aria.auth_key'),
+        acct_no: sessionVars.billedParty.billingSystemAccountId,
+
+        client_plan_instance_id: sessionVars.billedParty.billingSystemMasterPlanId,
+        status_cd: sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.planInstanceStatus,
+        force_bill_date_reset: 1
+      }
+    }
+  }
+}
+]]></dw:set-payload>
+        </dw:transform-message>
+        <http:request config-ref="Aria_Request_Configuration" path="${aria.path}" method="POST" doc:name="Update Acct Plan Multi">
+            <http:request-builder>
+                <http:header headerName="SOAPAction" value="&quot;update_acct_plan_status_m&quot;"/>
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Parse Update Acct Plan Multi Response">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%var updateResponseElement = payload.Envelope.Body.update_acct_plan_status_mResponseElement
+---
+{
+  errorMessage: updateResponseElement.error_msg,
+  errorCode: updateResponseElement.error_code
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <choice doc:name="Choice">
+            <when expression="payload.errorMessage == 'OK'">
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Update Status=#[payload.errorMessage]" level="INFO" category="com.merrillcorp.choice.updateariaacctplanmulti" doc:name="Choice Logger"/>
+                <flow-ref name="updateIntegrationMetaData" doc:name="updateIntegrationMetaData"/>
+            </when>
+            <otherwise>
+                <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Update Status=#[payload.errorMessage]" level="ERROR" category="com.merrillcorp.choice.updateariaacctplanmulti" doc:name="Choice Logger"/>
+                <filter ref="Aria_Response_Evaluation" doc:name="Filter Reference"/>
+            </otherwise>
+        </choice>
+    </flow>
+</mule>

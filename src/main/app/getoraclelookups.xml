@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+    <flow name="getLookupFromInvoiceTemplateMapping" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.oracle.lookups"/>
+        <flow-ref name="getOracleAuth" doc:name="getOracleAuth"/>
+        <flow-ref name="getInvoiceTemplateMappingFromOracle" doc:name="getInvoiceTemplateMappingFromOracle"/>
+        <dw:transform-message doc:name="Parse The Invoice Template" metadata:id="037cfa30-ec22-46e2-8303-0d3cce232008">
+            <dw:input-session-variable mimeType="application/java" variableName="projectModel"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%var theEntry = payload[?($.COUNTRY_CODE == (upper sessionVars.projectModel.sourceData.countryOfIssuer) and $.BUSINESS_UNIT == (upper sessionVars.projectModel.sourceData.businessUnit)) ][0]
+---
+{
+	creditMemoTemplate: theEntry.CREDIT_MEMO_TEMPLATE,
+	creditNoteTemplate: theEntry.CREDIT_NOTE_TEMPLATE,
+	name: sessionVars.projectModel.sourceData.projectSfdcId,
+	rebillTemplate: theEntry.REBILL_TEMPLATE,
+	statementTemplate: theEntry.STATEMENT_TEMPLATE
+} as :object {
+	class : "com.merrillcorp.enterprise.canonical.models.BillingSystemBillingGroup"
+}
+]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.oracle.lookups" doc:name="End of Flow Logger"/>
+        
+    </flow>
+    <flow name="getInvoiceTemplateMappingFromOracle" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.oracle.lookups"/>
+        <ee:cache cachingStrategy-ref="InvoiceTemplateExpirableCachingStrategy" doc:name="Cache">
+            <dw:transform-message doc:name="Set Payload To Get Invoice Template Mapping">
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+
+  "GET_INVOICE_TEMPLATE_MAPPING_Input": {
+
+    "InputParameters": {}  
+
+  }
+
+}]]></dw:set-payload>
+            </dw:transform-message>
+            <until-successful maxRetries="${oracle.http.max.retries}" millisBetweenRetries="${oracle.http.milliSecondsBetweenRetries}" failureExpression="exception!=null &amp;&amp; (exception.causedBy(java.io.IOException) || exception.causedBy(java.net.ConnectException)  || exception.causedBy(java.net.SocketTimeoutException))" synchronous="true" doc:name="UntilSuccessfulForInvoiceCreation">
+                <http:request config-ref="Oracle_Request_Configuration" path="${oracle.invoiceTemplateMapping.path}" method="POST" doc:name="GetInvoiceTemplateMapping">
+                    <http:request-builder>
+                        <http:header headerName="Cookie" value="#[flowVars.oracleAuth.tokenName + '=' + flowVars.oracleAuth.accessToken]"/>
+
+                    </http:request-builder>
+                    <http:success-status-code-validator values="0..599"/>
+                </http:request>
+            </until-successful>
+            <dw:transform-message doc:name="Parse Invoice Template Mapping">
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload.OutputParameters.X_INV_TEMPL_MAP.X_INV_TEMPL_MAP_ITEM]]></dw:set-payload>
+            </dw:transform-message>
+        </ee:cache>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.oracle.lookups" doc:name="End of Flow Logger"/>
+        
+    </flow>
+    <flow name="lookupFromInvoiceMapping" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.oracle.lookups"/>
+        <flow-ref name="getOracleAuth" doc:name="getOracleAuth"/>
+        <dw:transform-message doc:name="Set Payload to get Invoice Mapping">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+  "GET_INVOICE_MAPPING_Input": {
+    "RESTHeader": {
+      "RespApplication": "PA",
+      "SecurityGroup": "STANDARD",
+      "NLSLanguage": "AMERICAN"
+    },
+    "InputParameters": {}
+  }
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <ee:cache cachingStrategy-ref="lookupInvoiceCachingStrategy" doc:name="Cache">
+            <until-successful maxRetries="${oracle.http.max.retries}" millisBetweenRetries="${oracle.http.milliSecondsBetweenRetries}" failureExpression="exception!=null &amp;&amp; (exception.causedBy(java.io.IOException) || exception.causedBy(java.net.ConnectException)  || exception.causedBy(java.net.SocketTimeoutException))" synchronous="true" doc:name="Until Successful">
+                <http:request config-ref="Oracle_Request_Configuration" path="${oracle.invoiceMapping.path}" method="POST" doc:name="Get Invoice Mapping Table">
+                    <http:request-builder>
+                        <http:header headerName="Cookie" value="#[flowVars.oracleAuth.tokenName + '=' + flowVars.oracleAuth.accessToken]"/>
+                    </http:request-builder>
+                </http:request>
+            </until-successful>
+            <dw:transform-message doc:name="Transform Message">
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+            </dw:transform-message>
+            <dw:transform-message doc:name="Transform Message">
+                <dw:set-variable variableName="entrySize"><![CDATA[%dw 1.0
+%output application/java
+%var Entry = payload.OutputParameters.X_INV_MAP.X_INV_MAP_ITEM[?( $.CURRENCY_CODE == (upper sessionVars.projectModel.sourceData.currency) and  $.LEGAL_ENTITY == sessionVars.projectModel.sourceData.legalEntity[0..2] and $.OPERATING_UNIT_ID == sessionVars.projectModel.sourceData.operatingUnitId ) ]
+---
+{
+  verbiage: Entry.TERMS_VERBIAGE,
+  headerLeft: Entry.HEADER_LEFT,
+  headerRight: Entry.HEADER_RIGHT,
+  footerLeft: Entry.FOOTER_LEFT,
+  footerRight: Entry.FOOTER_RIGHT
+}]]></dw:set-variable>
+                <dw:set-variable variableName="nextEntrySize"><![CDATA[%dw 1.0
+%output application/java
+%var nexEntry = payload.OutputParameters.X_INV_MAP.X_INV_MAP_ITEM[?( $.DEFAULT_CURRENCY == "Y" and  $.LEGAL_ENTITY == sessionVars.projectModel.sourceData.legalEntity[0..2] and $.OPERATING_UNIT_ID == sessionVars.projectModel.sourceData.operatingUnitId ) ]
+---
+{
+  verbiage: nexEntry.TERMS_VERBIAGE,
+  headerLeft: nexEntry.HEADER_LEFT,
+  headerRight: nexEntry.HEADER_RIGHT,
+  footerLeft: nexEntry.FOOTER_LEFT,
+  footerRight: nexEntry.FOOTER_RIGHT
+}]]></dw:set-variable>
+            </dw:transform-message>
+            <dw:transform-message doc:name="Get The invoice Map">
+                <dw:input-payload doc:sample="project-org-map-response.json"/>
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+%var theEntry = payload.OutputParameters.X_INV_MAP.X_INV_MAP_ITEM[?( $.CURRENCY_CODE == (upper sessionVars.projectModel.sourceData.currency) and  $.LEGAL_ENTITY == sessionVars.projectModel.sourceData.legalEntity[0..2] and $.OPERATING_UNIT_ID == sessionVars.projectModel.sourceData.operatingUnitId ) ]
+%var nextEntry = payload.OutputParameters.X_INV_MAP.X_INV_MAP_ITEM[?( $.DEFAULT_CURRENCY == "Y" and  $.LEGAL_ENTITY == sessionVars.projectModel.sourceData.legalEntity[0..2] and $.OPERATING_UNIT_ID == sessionVars.projectModel.sourceData.operatingUnitId ) ]
+---
+{
+	verbiage: (theEntry.TERMS_VERBIAGE when ((theEntry != null) and ((sizeOf flowVars.entrySize.verbiage) < 2 == true) and ((flowVars.entrySize.verbiage[0]) != "<null>"))
+		otherwise nextEntry.TERMS_VERBIAGE when ((nextEntry != null) and (theEntry == null) and ((sizeOf flowVars.nextEntrySize.verbiage) < 2 == true) and ((flowVars.nextEntrySize.verbiage[0]) != "<null>"))
+		otherwise ["<null>"] when ((((sizeOf flowVars.nextEntrySize.verbiage) < 2 == true) and (flowVars.nextEntrySize.verbiage[0]) == "<null>") or (((sizeOf flowVars.entrySize.verbiage) < 2 == true) and (flowVars.entrySize.verbiage[0]) == "<null>"))
+		otherwise ["Error"])[0],
+	
+	headerLeft: (theEntry.HEADER_LEFT when ((theEntry != null) and ((sizeOf flowVars.entrySize.headerLeft) < 2 == true) and ((flowVars.entrySize.headerLeft[0]) != "<null>"))
+		otherwise nextEntry.HEADER_LEFT when ((nextEntry != null) and (theEntry == null) and ((sizeOf flowVars.nextEntrySize.headerLeft) < 2 == true) and ((flowVars.nextEntrySize.headerLeft[0]) != "<null>"))
+		otherwise ["<null>"] when ((((sizeOf flowVars.nextEntrySize.headerLeft) < 2 == true) and (flowVars.nextEntrySize.headerLeft[0]) == "<null>") or (((sizeOf flowVars.entrySize.headerLeft) < 2 == true) and (flowVars.entrySize.headerLeft[0]) == "<null>"))
+		otherwise ["Error"])[0],
+		
+	headerRight: (theEntry.HEADER_RIGHT when ((theEntry != null) and ((sizeOf flowVars.entrySize.headerRight) < 2 == true) and ((flowVars.entrySize.headerRight[0]) != "<null>"))
+		otherwise nextEntry.HEADER_RIGHT when ((nextEntry != null) and (theEntry == null) and ((sizeOf flowVars.nextEntrySize.headerRight) < 2 == true) and ((flowVars.nextEntrySize.headerRight[0]) != "<null>"))
+		otherwise ["<null>"] when ((((sizeOf flowVars.nextEntrySize.headerRight) < 2 == true) and (flowVars.nextEntrySize.headerRight[0]) == "<null>") or (((sizeOf flowVars.entrySize.headerRight) < 2 == true) and (flowVars.entrySize.headerRight[0]) == "<null>"))
+		otherwise ["Error"])[0],
+		
+	footerLeft: (theEntry.FOOTER_LEFT when ((theEntry != null) and ((sizeOf flowVars.entrySize.footerLeft) < 2 == true) and ((flowVars.entrySize.footerLeft[0]) != "<null>"))
+		otherwise nextEntry.FOOTER_LEFT when ((nextEntry != null) and (theEntry == null) and ((sizeOf flowVars.nextEntrySize.footerLeft) < 2 == true) and ((flowVars.nextEntrySize.footerLeft[0]) != "<null>"))
+		otherwise ["<null>"] when ((((sizeOf flowVars.nextEntrySize.footerLeft) < 2 == true) and (flowVars.nextEntrySize.footerLeft[0]) == "<null>") or (((sizeOf flowVars.entrySize.footerLeft) < 2 == true) and (flowVars.entrySize.footerLeft[0]) == "<null>"))
+		otherwise ["Error"])[0],
+		
+	footerRight: (theEntry.FOOTER_RIGHT when ((theEntry != null) and ((sizeOf flowVars.entrySize.footerRight) < 2 == true) and ((flowVars.entrySize.footerRight[0]) != "<null>"))
+		otherwise nextEntry.FOOTER_RIGHT when ((nextEntry != null) and (theEntry == null) and ((sizeOf flowVars.nextEntrySize.footerRight) < 2 == true) and ((flowVars.nextEntrySize.footerRight[0]) != "<null>"))
+		otherwise ["<null>"] when ((((sizeOf flowVars.nextEntrySize.footerRight) < 2 == true) and (flowVars.nextEntrySize.footerRight[0]) == "<null>") or (((sizeOf flowVars.entrySize.footerRight) < 2 == true) and (flowVars.entrySize.footerRight[0]) == "<null>"))
+		otherwise ["Error"])[0]
+}]]></dw:set-payload>
+            </dw:transform-message>
+        </ee:cache>
+        <scripting:component doc:name="Groovy_Throw_Error" doc:description="Throws an Error when there are multiple values in the fields of payload. ">
+            <scripting:script engine="Groovy"><![CDATA[if((payload.verbiage).equals("Error") || (payload.verbiage).equals(null) || (payload.headerLeft).equals("Error") || (payload.headerLeft).equals(null) || (payload.headerRight).equals("Error") || (payload.headerRight).equals(null) || (payload.footerLeft).equals("Error")  || (payload.footerLeft).equals(null) || (payload.footerRight).equals("Error") || (payload.footerRight).equals(null)){
+	throw new java.lang.Exception();
+
+}else{
+
+return payload
+}]]></scripting:script>
+        </scripting:component>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.oracle.lookups" doc:name="End of Flow Logger"/>
+        
+    </flow>
+    <flow name="getProjectOrgId" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.oracle.lookups"/>
+        <flow-ref name="getOracleAuth" doc:name="getOracleAuth"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+  "GET_PROJ_ORG_MAPPING_Input": {
+    "RESTHeader": {
+      "RespApplication": "PA",
+      "SecurityGroup": "STANDARD",
+      "NLSLanguage": "AMERICAN"
+    },
+    "InputParameters": {
+      "P_BUSINESS": "DATASITE"
+    }
+  }
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <ee:cache cachingStrategy-ref="ProjOrgExpirableCachingStrategy" doc:name="Cache">
+            <until-successful maxRetries="${oracle.http.max.retries}" millisBetweenRetries="${oracle.http.milliSecondsBetweenRetries}" failureExpression="exception!=null &amp;&amp; (exception.causedBy(java.io.IOException) || exception.causedBy(java.net.ConnectException)  || exception.causedBy(java.net.SocketTimeoutException))" synchronous="true" doc:name="Until Successful">
+                <http:request config-ref="Oracle_Request_Configuration" path="${oracle.projectMapping.path}" method="POST" doc:name="Get Project Org Mapping">
+                    <http:request-builder>
+                        <http:header headerName="Cookie" value="#[flowVars.oracleAuth.tokenName + '=' + flowVars.oracleAuth.accessToken]"/>
+                    </http:request-builder>
+                </http:request>
+            </until-successful>
+            <dw:transform-message doc:name="Transform Message">
+                <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-payload>
+            </dw:transform-message>
+        </ee:cache>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+payload.OutputParameters.X_PROJECT_ORGS.X_PROJECT_ORGS_ITEM[?(
+ $.BUSINESS_UNIT == (upper sessionVars.projectModel.sourceData.businessUnit) and
+ $.REVENUE_SITE == sessionVars.projectModel.sourceData.revenueSite[0..2] and
+ $.COUNTRY_OF_ISSUER  == sessionVars.projectModel.sourceData.countryOfIssuer
+)][0].PROJ_ORG_ID
+]]></dw:set-payload>
+
+        </dw:transform-message>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.oracle.lookups" doc:name="End of Flow Logger"/>
+        
+    </flow>
+</mule>

@@ -1,0 +1,110 @@
+[{"StartDate":"2017 - 07 - 18","IdentifierValue":"a27Z0000000XDgVIAW","EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"SF_Proj","Qualifier1Key":null,"Qualifier1Value":null},{"StartDate":"2017 - 07 - 18","IdentifierValue":"a3hZ0000000Lf8EIAS","EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"SF_BILLADDR","Qualifier1Key":"OPERUNIT","Qualifier1Value":"US_OU - MERRILL CORPORATION"},{"StartDate":"2017 - 07 - 18","IdentifierValue":"a3iZ0000005UmBGIA0","EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"SF_BILLCO","Qualifier1Key":"VAT","Qualifier1Value":null},{"StartDate":"2017 - 07 - 18","IdentifierValue":33781,"EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"ORA_Site","Qualifier1Key":"OPERUNIT","Qualifier1Value":"US_OU - MERRILL CORPORATION"},{"StartDate":"2017 - 07 - 18","IdentifierValue":13199,"EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"ORA_Acct","Qualifier1Key":"VAT","Qualifier1Value":null},{"StartDate":"2017 - 07 - 18","IdentifierValue":1822304,"EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":"LEGALENT","ISDELETED":0,"Qualifier2Value":"010 - MERRILL COMMUNICATIONS LLC","IdentifierTypeKey":"Aria_Acct","Qualifier1Key":"CURRENCY","Qualifier1Value":"USD"},{"StartDate":"2017 - 07 - 18","IdentifierValue":2532036,"EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"Aria_MPI","Qualifier1Key":"ARIAACCT","Qualifier1Value":1822304},{"StartDate":"2017 - 07 - 18","IdentifierValue":"596e3 ca04079d500136dfa03","EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"DS1_Proj","Qualifier1Key":null,"Qualifier1Value":null},{"StartDate":"2017 - 07 - 18","IdentifierValue":"031 - a27Z0000000XDgVIAW","EntityTypeKey":"PROJ","EndDate":null,"Qualifier2Key":null,"ISDELETED":0,"Qualifier2Value":null,"IdentifierTypeKey":"ORA_Proj","Qualifier1Key":null,"Qualifier1Value":null}][
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": "a27Z0000000XDgVIAW",
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "SF_Proj",
+        "Qualifier1Key": null,
+        "Qualifier1Value": null
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": "a3hZ0000000Lf8EIAS",
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "SF_BILLADDR",
+        "Qualifier1Key": "OPERUNIT",
+        "Qualifier1Value": "US_OU - MERRILL CORPORATION"
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": "a3iZ0000005UmBGIA0",
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "SF_BILLCO",
+        "Qualifier1Key": "VAT",
+        "Qualifier1Value": null
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": 33781,
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "ORA_Site",
+        "Qualifier1Key": "OPERUNIT",
+        "Qualifier1Value": "US_OU - MERRILL CORPORATION"
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": 13199,
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "ORA_Acct",
+        "Qualifier1Key": "VAT",
+        "Qualifier1Value": null
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": 1822304,
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": "LEGALENT",
+        "ISDELETED": 0,
+        "Qualifier2Value": "010 - MERRILL COMMUNICATIONS LLC",
+        "IdentifierTypeKey": "Aria_Acct",
+        "Qualifier1Key": "CURRENCY",
+        "Qualifier1Value": "USD"
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": 2532036,
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "Aria_MPI",
+        "Qualifier1Key": "ARIAACCT",
+        "Qualifier1Value": 1822304
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": "596e3 ca04079d500136dfa03",
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "DS1_Proj",
+        "Qualifier1Key": null,
+        "Qualifier1Value": null
+    },
+    {
+        "StartDate": "2017 - 07 - 18",
+        "IdentifierValue": "031 - a27Z0000000XDgVIAW",
+        "EntityTypeKey": "PROJ",
+        "EndDate": null,
+        "Qualifier2Key": null,
+        "ISDELETED": 0,
+        "Qualifier2Value": null,
+        "IdentifierTypeKey": "ORA_Proj",
+        "Qualifier1Key": null,
+        "Qualifier1Value": null
+    }
+]

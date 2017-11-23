@@ -1,0 +1,10 @@
+package com.merrillcorp.enterprise.canonical.models;
+global org.mule.module.bpm.MessageService mule;
+
+rule "NewAriaAccount" salience 50
+lock-on-active
+	when
+		$b : BilledParty(billingSystemAccountId == "NEW");
+	then
+		$b. getBilledPartyDirective().setIsExitingAccount(Boolean.TRUE);
+end

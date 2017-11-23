@@ -1,0 +1,2 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ns1="urn:client:api:wsdl:document/literal_wrapped:vers:10.2:aria_complete_m_api"><SOAP-ENV:Body><ns1:create_acct_complete_mResponseElement><ns1:error_code>1004</ns1:error_code><ns1:error_msg>authentication error</ns1:error_msg></ns1:create_acct_complete_mResponseElement></SOAP-ENV:Body></SOAP-ENV:Envelope>

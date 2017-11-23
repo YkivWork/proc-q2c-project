@@ -1,0 +1,23 @@
+{
+    "OutputParameters": {
+        "@xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "@xmlns": "http://xmlns.oracle.com/apps/pa/rest/xxpa_project_svc/create_project/",
+        "P_RESULTS": {
+            "PROJECT_NUMBER": "031-AK-0523-1",
+            "STATUS": "S",
+            "MESSAGES": {
+                "MESSAGES_ITEM": {
+                    "SEVERITY_LEVEL": "INFO",
+                    "CODE": "0",
+                    "ENTITY": "PROJECT",
+                    "KEY_MAPPING": "ProjNum",
+                    "KEY_VALUES": "031-AK-0523-1",
+                    "INVALID_VALUE": {
+                        "@xsi:nil": "true"
+                    },
+                    "MESSAGE": "Successfully completed Project"
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd">
+    <flow name="updateSplit" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging" doc:name="Logger"/>
+
+        <foreach collection="payload.billedParties" doc:name="For Each">
+            <choice doc:name="Choice">
+                <when expression="#[payload.billedPartyDirective == &quot;ADD&quot;]">
+                    <logger message="Add Path Chosen" level="INFO" category="com.merrillcorp.logging" doc:name="Add"/>
+                    <flow-ref name="addAccountMPIs" doc:name="addAccountMPIs"/>
+                </when>
+                <when expression="#[payload.billedPartyDirective == &quot;CANCEL&quot;]">
+                    <logger message="Cancel Path Chosen" level="INFO" category="com.merrillcorp.logging" doc:name="Cancel"/>
+                </when>
+                <when expression="#[payload.billedPartyDirective == &quot;UPDATE&quot;]">
+                    <logger message="Update Path Chosen" level="INFO" category="com.merrillcorp.logging" doc:name="Update"/>
+                    <flow-ref name="updatePlan" doc:name="updatePlan"/>
+                </when>
+                <otherwise>
+                    <logger message="No Directive Defined" level="INFO" category="com.merrillcorp.logging" doc:name="No Defined Directive"/>
+                </otherwise>
+            </choice>
+        </foreach>
+
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging" doc:name="End of Flow Logger"/>
+
+    </flow>
+</mule>

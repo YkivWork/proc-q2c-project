@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns="http://www.mulesoft.org/schema/mule/core"
+xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+xmlns:munit="http://www.mulesoft.org/schema/mule/munit"
+xmlns:spring="http://www.springframework.org/schema/beans"
+xmlns:core="http://www.mulesoft.org/schema/mule/core"
+xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+xmlns:mock="http://www.mulesoft.org/schema/mule/mock"
+      xsi:schemaLocation="http://www.mulesoft.org/schema/mule/munit http://www.mulesoft.org/schema/mule/munit/current/mule-munit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/mock http://www.mulesoft.org/schema/mule/mock/current/mule-mock.xsd">
+
+    <munit:config name="munit" doc:name="MUnit configuration"/>
+
+    <spring:beans>
+        <spring:import resource="classpath:getariacalls.xml"/>
+        <spring:import resource="classpath:globals.xml"/>
+
+        <spring:bean class="com.merrillcorp.enterprise.canonical.models.aria.AriaAccountDetails" name="invokeAriaAccountDetails"/>
+        <spring:bean name="noFactsBean" class="java.util.ArrayList"/>
+        <spring:bean class="com.merrillcorp.enterprise.canonical.models.Project" name="invokeCreateCustomRates"/>
+    </spring:beans>
+
+    <configuration>
+        <expression-language autoResolveVariables="true">
+            <import class="com.merrillcorp.enterprise.canonical.models.Project"/>
+            <import class="com.merrillcorp.enterprise.canonical.models.BilledParty"/>
+            <import class="com.merrillcorp.enterprise.canonical.models.ProjectSourceData"/>
+        </expression-language>
+    </configuration>
+
+    <munit:test name="deserializeAriaResponseParsesMultipleSuppPlans" description="Test">
+        <expression-component doc:name="Expression"><![CDATA[
+payload = new BilledParty();
+payload.setBillingSystemMasterPlanInstanceId("2523721");
+
+
+Project project = new Project();
+ProjectSourceData sourceData = new ProjectSourceData();
+sourceData.setCurrency("USD");
+sourceData.setLegalEntity("MSP");
+project.setSourceData(sourceData);
+
+sessionVars.projectModel = project;
+]]></expression-component>
+
+        <mock:when messageProcessor="http:request" doc:name="Mock">
+            <mock:then-return payload="#[getResource('ariaResponses/basic.xml').asString()]" mimeType="application/xml"/>
+        </mock:when>
+
+        <flow-ref name="getAriaAcctDetails" doc:name="getAriaAcctDetails"/>
+
+
+        <munit:assert-on-equals message="companyName is invalid" expectedValue="Cargill Incorporated Change" actualValue="#[payload.billingSystemAccount.companyName]" doc:name="Assert Equals"/>
+        <munit:assert-on-equals message="suppPlans size is invalid" expectedValue="#[8]" actualValue="#[payload.billingSystemAccount.billingSystemMasterPlanInstance.suppPlans.size()]" doc:name="Assert Equals"/>
+    </munit:test>
+</mule>

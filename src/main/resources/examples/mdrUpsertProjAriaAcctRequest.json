@@ -1,0 +1,12 @@
+{
+  "entity_type_key": "PROJ",
+  "on_id_type_key": "SF_PROJ",
+  "on_id_value": "a27c0000005ywQYAAY",
+  "add_id_type_key": "Aria_Acct",
+  "add_id_value": "123",
+  "add_qualifier1_key": "CURRENCY",
+  "add_qualifier1_value": "USD",
+  "add_qualifier2_key": "LEGALENT",
+  "add_qualifier2_value": "010",
+  "add_start_date": "2017-08-29"
+}

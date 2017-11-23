@@ -1,0 +1,12 @@
+{
+  "entity_type_key": "ORG",
+  "on_id_type_key": "SF_BILLCO",
+  "on_id_value": "a3ic0000001AZ5pAAG",
+  "on_qualifier1_key": "VAT",
+  "on_qualifier1_value": null,
+  "add_id_type_key": "ORA_ACCT",
+  "add_id_value": "32935",
+  "add_qualifier1_key": "VAT",
+  "add_qualifier1_value": null,
+  "add_start_date": "2017-08-29"
+}

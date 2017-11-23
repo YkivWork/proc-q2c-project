@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:microsoftservicebus="http://www.mulesoft.org/schema/mule/microsoftservicebus" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:json="http://www.mulesoft.org/schema/mule/json"
+    xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata"
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns:bpm="http://www.mulesoft.org/schema/mule/bpm"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/bpm http://www.mulesoft.org/schema/mule/bpm/current/mule-bpm.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.mulesoft.org/schema/mule/microsoftservicebus http://www.mulesoft.org/schema/mule/microsoftservicebus/current/mule-microsoftservicebus.xsd">
+
+    <spring:beans>
+    	<spring:bean class="com.merrillcorp.enterprise.canonical.models.aria.AriaAccountDetails" name="invokeAriaAccountDetails"/>
+  		<spring:bean name="noFactsBean" class="java.util.ArrayList"/>
+  		<spring:bean class="com.merrillcorp.enterprise.canonical.models.Project" name="invokeCreateCustomRates"/>
+    </spring:beans>
+    <sub-flow name="mdr_getProjectCrossReference_Sub_Flow00">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="Start of Flow Logger"/>
+
+        <set-session-variable variableName="payloadBeforeUntillSuccess" value="#[payload]" doc:name="setPayloadBeforeUntillSuccess"/>
+
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+            <http:request config-ref="MDR_Request_Configuration" path="${mdr.crossref.path}" method="GET" doc:name="getCrossReference">
+                <http:request-builder>
+                <http:query-param paramName="entity_type_key" value="PROJ"/>
+                <http:query-param paramName="id_type_key" value="SF_PROJ"/>
+                <http:query-param paramName="id_value" value="#[flowVars.projectSfdcId]"/>
+                <http:query-param paramName="include_deleted_cross_ref" value="0"/>
+
+                </http:request-builder>
+            </http:request>
+        <json:json-to-object-transformer doc:name="JSON to Object"/>
+        <logger message="payload received from MDR call:  #[payload]" level="INFO" category="com.merrillcorp.q2c" doc:name="Logger"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-variable variableName="mdrProject"><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-variable>
+        </dw:transform-message>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+
+    </sub-flow>
+    <flow name="getIntegrationMetaDataStatus00" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="Start of Flow Logger"/>
+        <sfdc:query-single config-ref="Salesforce__Basic_Authentication" query="${integration.metadata.sfdc.query} WHERE Id = 'a4O0U0000008OVUUA2'" doc:name="Salesforce"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-variable variableName="imdStatus"><![CDATA[%dw 1.0
+%output application/java
+---
+payload.currentRunTransactionId]]></dw:set-variable>
+        </dw:transform-message>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]   ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+    </flow>
+    <flow name="returnToNewlyActiveProjectQueueFlow00">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="Start of Flow Logger"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+sessionVars.originalProject]]></dw:set-payload>
+        </dw:transform-message>
+        <microsoftservicebus:queue-send config-ref="Microsoft_Service_Bus__Azure_Service_Bus" destinationQueue="${queue.newlyactiveproject}" doc:name="Microsoft Service Bus"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+        <filter ref="JustStopHere" doc:name="stop Here"/>
+    </flow>
+    <flow name="updateIntegrationMetaDataWithStatus" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="Start of Flow Logger"/>
+        <dw:transform-message doc:name="Create Integration MetaData Update" metadata:id="a230118e-7415-4493-a6d6-2393d1235585">
+            <dw:input-variable mimeType="application/java" variableName="billedParty"/>
+            <dw:input-session-variable mimeType="application/java" variableName="projectModel"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[{ 
+  Id: sessionVars.projectModel.integrationMetadata.id,
+  Current_Run_Transaction_Id__c: payload
+}]]]></dw:set-payload>
+        </dw:transform-message>
+        <sfdc:update config-ref="Salesforce__Basic_Authentication" type="Integration_Metadata__c" doc:name="Salesforce">
+            <sfdc:objects ref="#[payload]"/>
+        </sfdc:update>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+    </flow>
+
+    <flow name="returnToProjectQueueFlow">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="Start of Flow Logger"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+sessionVars.originalProject]]></dw:set-payload>
+        </dw:transform-message>
+        <object-to-string-transformer doc:name="Object to String"/>
+        <microsoftservicebus:queue-send config-ref="Microsoft_Service_Bus__Azure_Service_Bus" destinationQueue="joko" doc:name="Microsoft Service Bus"/>
+
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+        <filter ref="JustStopHere" doc:name="stop Here"/>
+    </flow>
+
+    <flow name="returnToQueueFlow">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="Start of Flow Logger"/>
+        <flow-ref name="returnToProjectQueueFlow" doc:name="returnToProjectQueueFlow"/>
+
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+    </flow>
+    <flow name="decideThePath">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="Start of Flow Logger"/>
+        <expression-component doc:name="Expression"><![CDATA[sessionVars.projectModel.determineReprocessStatus();]]></expression-component>
+        <choice doc:name="Choice">
+            <when expression="#[sessionVars.projectModel.projectDirective.reprocessStatus == &quot;TRUE&quot;]">
+                <logger message="continue the process" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="continue"/>
+            </when>
+            <otherwise>
+                <flow-ref name="returnToQueueFlow" doc:name="returnToQueueFlow"/>
+            </otherwise>
+        </choice>
+
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+    </flow>
+
+    <flow name="createCanonicalModel00">
+        <flow-ref name="mdr_getProjectCrossReference_Sub_Flow00" doc:name="mdr_getProjectCrossReference_Sub_Flow"/>
+        <flow-ref name="decideThePath" doc:name="decideThePath"/>
+
+    </flow>
+
+    <flow name="createCanonicalModel" processingStrategy="synchronous">
+        <set-variable variableName="projectSfdcId" value="#[dw('payload.projectSfdcId', 'application/java')]" doc:name="Set Sfdc Project Id"/>
+        <set-session-variable variableName="originalProject" value="#[payload]" mimeType="application/json" doc:name="Persist JSON"/>
+
+        <flow-ref name="createProjectModel" doc:name="createProjectModel"/>
+
+        <flow-ref name="mdrSync" doc:name="mdrSync"/>
+
+        <flow-ref name="createProjectModel" doc:name="createProjectModel"/>
+        <flow-ref name="decideThePath" doc:name="decideThePath"/>
+        <set-payload value="#[&quot;In Process&quot;]" doc:name="Set Payload"/>
+        <flow-ref name="updateIntegrationMetaDataWithStatus" doc:name="updateIntegrationMetaDataWithStatus"/>
+        <enricher target="#[variable:ariaEntitlements]" doc:name="Message Enricher">
+            <flow-ref name="getAriaEntitlementsFromTemplate" doc:name="getAriaEntitlementsFromTemplate"/>
+        </enricher>
+        <enricher target="#[variable:billingGroup]" doc:name="Message Enricher">
+            <flow-ref name="getLookupFromInvoiceTemplateMapping" doc:name="getLookupFromInvoiceTemplateMapping"/>
+        </enricher>
+        <expression-component doc:name="Expression"><![CDATA[sessionVars.projectModel.setProjectDirectives();
+payload.setEntitlements(flowVars.ariaEntitlements)]]></expression-component>
+
+
+        <foreach doc:name="For Each" collection="payload.billedParties">
+            <expression-component doc:name="Expression"><![CDATA[payload.setBillingSystemMasterPlanInstanceId(sessionVars.projectModel.getSourceData(), sessionVars.projectModel.getCrossRefs());
+payload.getToBeBillingSystemAccount().setBillingGroup(flowVars.billingGroup);]]></expression-component>
+
+            <choice doc:name="Is New Account">
+                <!-- TODO Look at passing in project's sourceData once and calculating all the needed fields, so we won't have to pass it in to many methods.
+                <when expression="#[payload.isNewAccount()]">
+                -->
+                <when expression="#[payload.isNewAccount(sessionVars.projectModel.getSourceData())]">
+                    <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Is New Account=#[payload.isNewAccount(sessionVars.projectModel.getSourceData())]" level="INFO" doc:name="Choice Logger" category="com.merrillcorp.choice.createcanonicalmodel"/>
+                </when>
+                <otherwise >
+                    <logger message="Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]  Choice:Is New Account=#[payload.isNewAccount(sessionVars.projectModel.getSourceData())]" level="INFO" category="com.merrillcorp.choice.createcanonicalmodel" doc:name="Choice Logger"/>
+
+                    <enricher target="variable:deserializedBilledParty" doc:name="Message Enricher">
+                        <flow-ref name="getAriaAcctDetails" doc:name="getAriaAcctDetails"/>
+                    </enricher>
+                    <expression-component doc:name="Expression"><![CDATA[payload.setBillingSystemAccount(flowVars.deserializedBilledParty.getBillingSystemAccount());]]></expression-component>
+
+                </otherwise>
+            </choice>
+
+            <expression-component doc:name="Expression"><![CDATA[payload.setBilledPartyDirectives(sessionVars.projectModel.getSourceData());
+payload.determineActiveLabel(sessionVars.projectModel.getSourceData());
+payload.setSuspendedDate(sessionVars.projectModel.getSourceData());
+payload.setCloseDate(sessionVars.projectModel.getSourceData());]]></expression-component>
+        </foreach>
+        <expression-component doc:name="Expression"><![CDATA[payload.setProjectDirectives();]]></expression-component>
+
+        <expression-component doc:name="Expression"><![CDATA[payload.populateToBeBilledModel();
+payload.setEachBillingDirective();]]></expression-component>
+
+        <set-session-variable variableName="projectModel" value="#[payload]" doc:name="Persist Project Model"/>
+
+
+        <choice doc:name="Project Path">
+            <when expression="#[(payload.getProjectDirective().getFlowType()).toString() == &quot;NEWSINGLE&quot;]">
+                <flow-ref name="newSingle" doc:name="newSingle"/>
+            </when>
+            <when expression="#[(payload.getProjectDirective().getFlowType()).toString()== &quot;UPDATESINGLE&quot;]">
+                <flow-ref name="updateSingle" doc:name="updateSingle"/>
+            </when>
+            <when expression="#[(payload.getProjectDirective().getFlowType()).toString()== &quot;NEWSPLIT&quot;]">
+                <flow-ref name="newSplit" doc:name="newSplit"/>
+            </when>
+            <when expression="#[(payload.getProjectDirective().getFlowType()).toString()== &quot;UPDATESPLIT&quot;]">
+                <flow-ref name="updateSplit" doc:name="updateSplit"/>
+            </when>
+            <when expression="#[(payload.getProjectDirective().getFlowType()).toString()== &quot;UPDATEPLANSTATUS&quot;]">
+                <flow-ref name="updatePlanStatus" doc:name="updatePlanStatus"/>
+            </when>
+            <otherwise>
+                <logger message="#[flowVars.projectSfdcId] Does Not Match Any Rules and Processing Will be Stopped" level="INFO" doc:name="No Path Chosen" category="com.merrillcorp.logging.createmodel"/>
+            </otherwise>
+
+        </choice>
+        <flow-ref name="persistInDSO" doc:name="persistInDSO"/>
+        <flow-ref name="persistInOracle" doc:name="persistInOracle"/>
+        <set-payload value="#[&quot;Finished&quot;]" doc:name="Set Payload"/>
+        <flow-ref name="updateIntegrationMetaDataWithStatus" doc:name="updateIntegrationMetaDataWithStatus"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.project.process" doc:name="End of Flow Logger"/>
+        <exception-strategy ref="globalCatchExceptionStrategy" doc:name="Reference Exception Strategy"/>
+
+
+        
+    </flow>
+    <sub-flow name="createProjectModel">
+        <set-payload value="#[sessionVars.originalProject]" mimeType="application/json" doc:name="Reset Payload to Original Project"/>
+        <enricher target="#[variable:mdrUpsertProjSfProj]" doc:name="Message Enricher">
+            <flow-ref name="upsertProjSfProj" doc:name="upsertProjSfProj"/>
+        </enricher>
+        <dw:transform-message doc:name="Transform Message" metadata:id="1a289332-71ce-479e-a545-1975cc8b7150">
+            <dw:input-payload mimeType="application/json"/>
+            <dw:input-variable mimeType="application/json" variableName="mdrUpsertProjSfProj"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	billedParties: payload.companies map ((company , indexOfCompany) -> {
+		billedPartyDirective: {
+		},
+		sourceData: {
+			billingAddress: {
+				address1: company.billingAddress.address1,
+				address2: company.billingAddress.address2,
+				address3: company.billingAddress.address3,
+				city: company.billingAddress.city,
+				country: company.billingAddress.country,
+				email: company.email,
+				firstName: company.firstName,
+				lastName: company.lastName,
+				phone: company.phone,
+				locality: company.billingAddress.locality,
+				middleInitial: company.billingAddress.middleInitial,
+				name: company.billingAddress.name,
+				oracleSiteId: company.billingAddress.oracleSiteId,
+				postalCode: company.billingAddress.postalCode,
+				sfdcId: company.billingAddress.sfdcId,
+				stateProvince: company.billingAddress.stateProvince
+			},
+			billingCompany: company.billingCompany,
+			customerOrderNumber: company.customerOrderNumber,
+      		retroChange: company.retroChange,
+			crossRefs: lookup("upsertOrgSfBillCo",{
+				projectSfdcId: payload.projectSfdcId,
+				company: company
+			})
+		}
+	}),
+	crossRefs: flowVars.mdrUpsertProjSfProj map ((mdrUpsertProjSfProj , indexOfmdrUpsertProjSfProj) -> {
+		endDate: mdrUpsertProjSfProj.EndDate,
+		entityTypeKey: mdrUpsertProjSfProj.EntityTypeKey,
+		identifierTypeKey: mdrUpsertProjSfProj.IdentifierTypeKey,
+		identifierValue: mdrUpsertProjSfProj.IdentifierValue,
+		isDeleted: mdrUpsertProjSfProj.ISDELETED as :string,
+		qualifier1Key: mdrUpsertProjSfProj.Qualifier1Key,
+		qualifier1Value: mdrUpsertProjSfProj.Qualifier1Value,
+		qualifier2Key: mdrUpsertProjSfProj.Qualifier2Key,
+		qualifier2Value: mdrUpsertProjSfProj.Qualifier2Value,
+		startDate: mdrUpsertProjSfProj.StartDate
+	}),
+	integrationMetadata: {
+		id: payload.integrationMetadata.sfdcId,
+		currentRunTransactionId: payload.integrationMetadata.currentRunTransactionId,		
+		lastCompletedProjectStatus: payload.integrationMetadata.lastCompletedProjectStatus
+	},
+	sourceData: {
+		activeDate: payload.activeDate,
+		adminEmail: payload.adminEmail,
+		ariaCreation: payload.ariaCreation,
+		billingEffectiveDate: payload.billingEffectiveDate,
+		businessUnit: payload.businessUnit,
+		closedDate: payload.closedDate,
+		closureMediaIncluded: payload.closureMediaInclude,
+		closureRequestedDate: payload.closureRequestedDate,
+		continuationDate: payload.continuationDate,
+		continuationRate: payload.continuationRate,
+		continuationRateSM: payload.continuationRateSM,
+		contractCustomer: payload.contractCustomer,
+		contractTerm: payload.contractTerm,
+		countryOfIssuer: payload.countryOfIssuer,
+		createdAt: payload.createdAt,
+		currency: payload.currency,
+		dataCenter: payload.dataCenter,
+		datasiteOneId: payload.datasiteOneId,
+		hibernateDate: payload.hibernateDate,
+		hibernationRate: payload.hibernationRate,
+		hibernationRateSM: payload.hibernationRateSM,
+		legalEntity: payload.legalEntity,
+		minimumFee: payload.minimumFee,
+		modifiedAt: payload.modifiedAt,
+		name: payload.name,
+		operatingUnitId: payload.operatingUnitId,
+		operatingUnitName: payload.operatingUnitName,
+		primaryServiceSite: payload.primaryServiceSite,
+		productType: payload.productType,
+		projectCreateDate: payload.payloadCreateDate,
+		projectSfdcId: payload.projectSfdcId,
+		projectStatus: payload.projectStatus,
+		promotionalDiscount: payload.promotionalDiscount,
+		retroStartDate: payload.retroStartDate,
+		revenueSite: payload.revenueSite,
+		sales: payload.sales,
+		salesReps: payload.salesReps map ((salesRep , indexOfSalesReps) -> {
+			employeeNumber: salesRep.employeeNumber,
+			isPrimary: salesRep.isPrimary,
+			name: salesRep.name,
+			splitPercentage: salesRep.splitPercentage
+		}),
+		specialMediaRate: payload.specialMediaRate,
+		suspendedDate: payload.suspendedDate,
+		tier10Rate: payload.tier10Rate,
+		tier1Rate: payload.tier1Rate,
+		tier1UpperLimit: payload.tier1UpperLimit,
+		tier2Rate: payload.tier2Rate,
+		tier2UpperLimit: payload.tier2UpperLimit,
+		tier3Rate: payload.tier3Rate,
+		tier3UpperLimit: payload.tier3UpperLimit,
+		tier4Rate: payload.tier4Rate,
+		tier4UpperLimit: payload.tier4UpperLimit,
+		tier5Rate: payload.tier5Rate,
+		tier5UpperLimit: payload.tier5UpperLimit,
+		tier6Rate: payload.tier6Rate,
+		tier6UpperLimit: payload.tier6UpperLimit,
+		tier7Rate: payload.tier7Rate,
+		tier7UpperLimit: payload.tier7UpperLimit,
+		tier8Rate: payload.tier8Rate,
+		tier8UpperLimit: payload.tier8UpperLimit,
+		tier9Rate: payload.tier9Rate,
+		tier9UpperLimit: payload.tier9UpperLimit,
+		unitOfMeasure: payload.unitOfMeasure,
+		updatePlanStatus: sessionVars.updatePlanStatus
+	}
+} as :object {
+	class : "com.merrillcorp.enterprise.canonical.models.Project"
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <set-session-variable variableName="projectModel" value="#[payload]" doc:name="Persist Project Model"/>
+
+    </sub-flow>
+</mule>

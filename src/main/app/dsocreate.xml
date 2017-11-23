@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:email="http://www.mulesoft.org/schema/mule/email" xmlns:mulexml="http://www.mulesoft.org/schema/mule/xml" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.mulesoft.org/schema/mule/xml http://www.mulesoft.org/schema/mule/xml/current/mule-xml.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd">
+    <flow name="dsoCreate" processingStrategy="synchronous">
+		<logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.dso"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="62807fc8-c95f-4c71-91ff-e9932297b736">
+            <dw:input-session-variable mimeType="application/java" variableName="projectModel"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	info: {
+		name: sessionVars.projectModel.sourceData.name,
+		description: sessionVars.projectModel.sourceData.name,
+		externalId: sessionVars.projectModel.sourceData.projectSfdcId,
+		dataCenter: sessionVars.projectModel.sourceData.dataCenter,
+		productCode: "MANDA",
+		emailId: sessionVars.projectModel.sourceData.adminEmail,
+		scheduledActivationDate: 0,
+		state: "PREP" when sessionVars.projectModel.sourceData.projectStatus == "Build Period"
+			otherwise "ACTIVE" when sessionVars.projectModel.sourceData.projectStatus == "Active"
+			otherwise "HIBERNATION" when sessionVars.projectModel.sourceData.projectStatus == "Hibernation"
+			otherwise "SUSPENDED" when sessionVars.projectModel.sourceData.projectStatus == "Suspended"
+			otherwise "CLOSING" when sessionVars.projectModel.sourceData.projectStatus == "Closure Requested"
+			otherwise "CLOSED" when sessionVars.projectModel.sourceData.projectStatus == "Closed"
+			otherwise "UNKNOWN",
+		demo: false
+	},
+	deleted: false,
+	configurations: null,
+	entitlements: (sessionVars.billedParty.toBeBillingSystemAccount.billingSystemMasterPlanInstance.currentEntitlement default '' splitBy ";") map {
+	  enabled: true,
+	  entitlementCode: trim $
+	}
+} ]]></dw:set-payload>
+        </dw:transform-message>
+        <enricher target="variable:dsoToken" doc:name="Message Enricher">
+            <flow-ref name="getDSOAuth" doc:name="getDSOAuth"/>
+        </enricher>
+           <http:request config-ref="DSO_API_Request_Configuration" path="${dso.create.api.path}" method="POST" doc:name="DSO_CreateProject">
+                <http:request-builder>
+                <http:header headerName="Content-Type" value="application/json"/>
+                <http:header headerName="Authorization" value="Bearer #[flowVars.dsoToken]"/>
+           </http:request-builder>
+            </http:request>
+        <dw:transform-message doc:name="Transform Message" metadata:id="0b650328-ce54-4c3f-b8c8-3a59926aa924">
+            <dw:input-payload doc:sample="examples/dsoCreateResponse.json" mimeType="application/json"/>
+            <dw:set-variable variableName="dsoResponse"><![CDATA[%dw 1.0
+%output application/java
+---
+payload]]></dw:set-variable>
+        </dw:transform-message>
+        <flow-ref name="addProjDSOToProj" doc:name="addProjDSOToProj"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[{
+  Id: sessionVars.projectModel.sourceData.projectSfdcId,
+  DatasiteOne_ProjectID__c: flowVars.dsoResponse.id
+}]]]></dw:set-payload>
+        </dw:transform-message>
+        <sfdc:update config-ref="Salesforce__Basic_Authentication" type="DatasiteOne_Project__c" doc:name="Salesforce">
+            <sfdc:objects ref="#[payload]"/>
+        </sfdc:update>
+		<logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.dso" doc:name="End of Flow Logger"/>
+        
+    </flow>
+</mule>

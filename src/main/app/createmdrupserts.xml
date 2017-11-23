@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <sub-flow name="upsertCallResponse">
+    	<logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.upsert"/>
+        <http:request config-ref="MDR_Request_Configuration" path="${mdr.upsertinstance.path}" method="POST" doc:name="Post MDR Upsert">
+            <http:request-builder>
+                <http:header headerName="Content-Type" value="application/json"/>
+            </http:request-builder>
+        </http:request>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+    </sub-flow>
+    <sub-flow name="upsertProjSfProj">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.upsert"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="5c1980fa-a3a3-4399-8682-5dc00fc7edd1">
+            <dw:input-payload mimeType="application/java"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	entity_type_key: 'PROJ',
+	id_type_key: 'SF_PROJ',
+	id_value: flowVars.projectSfdcId,
+	descriptor1: 'Test Project'
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="upsertCallResponse" doc:name="upsertCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+    </sub-flow>
+    <flow name="upsertOrgSfBillCo" processingStrategy="synchronous">
+        <logger message="Entered_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" doc:name="Start of Flow Logger" category="com.merrillcorp.logging.mdr.upsert"/>
+        <dw:transform-message doc:name="Transform Message" metadata:id="3dd0b9e7-c9a8-4ab0-8c43-d53a56c3c4f8">
+            <dw:input-payload mimeType="application/java"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	entity_type_key: 'ORG',
+	id_type_key: 'SF_BILLCO',
+	id_value: payload.company.billingCompany.sfdcId,
+	qualifier1_key: 'VAT',
+	qualifier1_value: payload.company.billingCompany.vatRegistration
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <byte-array-to-object-transformer doc:name="Byte Array to Object"/>
+        <flow-ref name="upsertCallResponse" doc:name="upsertCallResponse"/>
+        <logger message="Completed_Flow=#[flow.name]  MessageId=#[message.id]  ProjectId=#[flowVars.projectSfdcId]" level="INFO" category="com.merrillcorp.logging.mdr.upsert" doc:name="End of Flow Logger"/>
+        
+    </flow>
+</mule>

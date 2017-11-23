@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:secure-property-placeholder="http://www.mulesoft.org/schema/mule/secure-property-placeholder" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/secure-property-placeholder http://www.mulesoft.org/schema/mule/secure-property-placeholder/current/mule-secure-property-placeholder.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd">
+    <secure-property-placeholder:config name="Secure_Property_Placeholder" key="${runtime.key}" location="properties/common.properties,properties/${mule.env}.properties" doc:name="Secure Property Placeholder"/>
+    <http:request-config name="Aria_Request_Configuration" protocol="HTTPS" host="${aria.host}" port="443" doc:name="HTTP Request Configuration" responseTimeout="${response.timeout}"/>
+    <http:request-config name="Aria_AdminTools_Request_Configuration" protocol="HTTPS" host="${aria.admintools.host}" port="443" doc:name="HTTP Request Configuration" basePath="/"/>
+    <http:request-config name="Aria_Workflow_Request_Configuration" host="${aria.workflow.host}" port="443" doc:name="HTTP Request Configuration" protocol="HTTPS" responseTimeout="90000"/>
+    <http:request-config name="DSO_Auth_Request_Configuration" protocol="HTTPS" host="${dso.auth.host}" port="443" doc:name="HTTP Request Configuration"/>
+    <http:request-config name="DSO_API_Request_Configuration" host="${dso.api.host}" port="443" doc:name="HTTP Request Configuration" protocol="HTTPS" connectionIdleTimeout="90000" responseTimeout="${dso.response.timeout}"/>
+	<http:request-config name="MDR_Request_Configuration"
+		host="${mdr.system.host}" port="${mdr.system.port}" basePath="/"
+		doc:name="MDR_Request_Configuration" responseTimeout="120000">
+        <http:ntlm-proxy host="inetproxy" port="80" username="jsuhary" password="#Chantik78" ntlmDomain="adminsys"/>
+
+	</http:request-config>
+	<http:request-config name="Oracle_Request_Configuration"
+		host="${oracle.host}" port="${oracle.port}" basePath="/"
+		doc:name="Oracle_Request_Configuration" responseTimeout="${response.timeout}">
+		<http:basic-authentication username="${oracle.username}"
+			password="${oracle.password}" />
+	</http:request-config>
+    <sfdc:config name="Salesforce__Basic_Authentication" username="${sfdc.username}" password="${sfdc.password}" securityToken="${sfdc.securityToken}" url="${sfdc.url}" doc:name="Salesforce: Basic Authentication" disableSessionInvalidation="true">
+        <reconnect frequency="40000" count="3"/>
+    </sfdc:config>
+    <ee:object-store-caching-strategy name="lookupInvoiceCachingStrategy" doc:name="Caching Strategy"/>
+	<ee:object-store-caching-strategy entryTTL="600000" name="ExpirableCachingStrategy" doc:name="Caching Strategy" />
+	<ee:object-store-caching-strategy entryTTL="600000" name="InvoiceTemplateExpirableCachingStrategy" doc:name="InvoiceTemplateCaching Strategy" />
+	<ee:object-store-caching-strategy name="ProjOrgExpirableCachingStrategy" doc:name="Caching Strategy"/>
+    <expression-filter expression="#[payload.errorMessage == 'OK']" name="Aria_Response_Evaluation" doc:name="Expression"/>
+    <expression-filter expression="#[payload.status == 'S']" name="Oracle_Response_Evaluation" doc:name="Expression"/>
+    <expression-filter expression="#[message == null]" name="exceptionStopMessage" doc:name="Expression"/>
+    <expression-filter expression="#[sessionVars.updatePlanStatus !=true]" name="updatePlanStatusStop" doc:name="Expression" />
+    <expression-filter expression="#[payload == 123455]" name="JustStopHere" doc:name="Expression"/>
+    <catch-exception-strategy name="globalCatchExceptionStrategy">
+        <logger message="#['\n']---------------Exception---------------------#['\n'] By Application: #[app.name] #['\n'] Keys: MessageId=#[message.id] ProjectId=#[flowVars.projectSfdcId] #['\n'] In Flow: #[flow.name] #['\n'] Originating Caller: #[message.inboundProperties.toString()] #['\n'] Caused Exception At: #[exception.info.Element] #['\n'] Caused Exception In: #[exception.info.'Element XML'] #['\n'] Exception Details: #[exception.message]  #['\n'] Original Payload: #[exception.event.message.originalPayload] #['\n'] Exception Payload: #[exception.event.message.payload]#['\n']---------------Exception---------------------" level="ERROR" doc:name="Minimal Logger"/>
+        <logger message="#[message.exception.getSummaryMessage()]" level="DEBUG" doc:name="Detailed Logger"/>
+		<filter ref="exceptionStopMessage" doc:name="Filter Reference"/> 
+    </catch-exception-strategy>
+</mule>
